@@ -1,0 +1,120 @@
+# Билды и исполняемые файлы
+build/bin
+*.exe
+*.app
+*.dmg
+*.pkg
+
+# Зависимости
+node_modules/
+frontend/dist/
+
+# База данных (содержит API ключи и пользовательские данные)
+*.db
+*.sqlite
+*.sqlite3
+
+# Временные файлы и кэш
+temp/
+cache/
+logs/
+*.log
+
+# Конфигурационные файлы с чувствительными данными
+.env
+.env.local
+.env.development
+.env.production
+config.json
+secrets.json
+credentials.json
+
+# API ключи и пароли (если хранятся в отдельных файлах)
+*.key
+*.pem
+*.p12
+*.pfx
+*secret*
+*password*
+*credentials*
+
+# Пользовательские настройки и данные
+user_data/
+uploads/
+downloads/
+settings.json
+app_settings.json
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.tmp
+*.temp
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# IDE и редакторы
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+.metadata
+
+# Архивы релизов (по желанию - можно оставить для скачивания)
+releases/*.zip
+releases/*.tar.gz
+releases/*.dmg
+
+# Логи сборок
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Go
+vendor/
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# Wails
+app.syso
+wails.json.bak
+
+# Персональные файлы разработчика
+notes.md
+TODO.md
+PERSONAL.md
+scratch.txt

@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Photo Automation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .drag-over {
+            border-color: #3b82f6 !important;
+            background-color: #eff6ff !important;
+        }
+        
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            max-width: 400px;
+        }
+        
+        .settings-content {
+            display: none;
+        }
+        
+        .settings-content.active {
+            display: block;
+        }
+        
+        /* Custom AI Model Selector Styles */
+        .ai-model-selector {
+            position: relative;
+        }
+        
+        .ai-model-option {
+            display: block;
+            width: 100%;
+            padding: 8px 12px;
+            text-align: left;
+            border: none;
+            background: transparent;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+        }
+        
+        .ai-model-option:hover {
+            background-color: #f3f4f6;
+        }
+        
+        .ai-model-option.selected {
+            background-color: #3b82f6;
+            color: white;
+        }
+        
+        .ai-model-option .model-name {
+            font-weight: 500;
+            display: block;
+        }
+        
+        .ai-model-option .model-description {
+            font-size: 0.875rem;
+            color: #6b7280;
+            display: block;
+            margin-top: 2px;
+        }
+        
+        .ai-model-option.selected .model-description {
+            color: #e5e7eb;
+        }
+        
+        .ai-model-option .model-tokens {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            display: inline-block;
+            margin-top: 2px;
+        }
+        
+        .ai-model-option.selected .model-tokens {
+            color: #d1d5db;
+        }
+        
+        /* Scrollbar styling for dropdown */
+        #aiModelDropdown::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        #aiModelDropdown::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        
+        #aiModelDropdown::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+        
+        #aiModelDropdown::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="fixed inset-0 bg-white z-50 flex items-center justify-center">
+        <div class="text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <h2 class="text-xl font-semibold text-gray-900 mb-2">Stock Photo Automation</h2>
+            <p class="text-gray-600" id="loadingMessage">Initializing application...</p>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notificationContainer" class="notification"></div>
+
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <h1 class="text-xl font-semibold text-gray-900" data-i18n="app.title">Stock Photo Automation</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <!-- Mode Indicator -->
+                    <div id="modeIndicator" class="hidden px-2 py-1 text-xs rounded-full">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                    <!-- Language Selector -->
+                    <select id="languageSelector" class="border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="en">English</option>
+                        <option value="ru">Русский</option>
+                    </select>
+                    <button id="settingsBtn" class="text-gray-500 hover:text-gray-700" data-i18n-title="navigation.settings">
+                        <i class="fas fa-cog text-lg"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Tab Navigation -->
+    <div class="bg-white border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex space-x-8">
+                <button class="tab-btn py-3 px-1 border-b-2 border-blue-500 text-blue-600 font-medium text-sm active" data-tab="editorial" data-i18n="tabs.editorial">
+                    Editorial Photos
+                </button>
+                <button class="tab-btn py-3 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm" data-tab="commercial" data-i18n="tabs.commercial">
+                    Commercial Photos
+                </button>
+                <button class="tab-btn py-3 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm" data-tab="queue" data-i18n="tabs.queue">
+                    Processing Queue
+                </button>
+                <button class="tab-btn py-3 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm" data-tab="review" data-i18n="tabs.review">
+                    Review Results
+                </button>
+                <button class="tab-btn py-3 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm" data-tab="history" data-i18n="tabs.history">
+                    History
+                </button>
+                <button class="tab-btn py-3 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm" data-tab="logs" data-i18n="tabs.logs">
+                    Logs
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        
+        <!-- Editorial Tab -->
+        <div id="editorial" class="tab-content active">
+            <div class="bg-white shadow rounded-lg p-6">
+                <h2 class="text-lg font-medium text-gray-900 mb-4" data-i18n="editorial.title">Editorial Photo Processing</h2>
+                
+                <!-- Drag & Drop Zone -->
+                <div id="editorialDropZone" class="drop-zone border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors cursor-pointer">
+                    <div class="space-y-2">
+                        <i class="fas fa-cloud-upload-alt text-4xl text-gray-400"></i>
+                        <div>
+                            <p class="text-lg text-gray-600" data-i18n="editorial.dropZone.drag">Drag and drop a folder with photos here</p>
+                            <p class="text-sm text-gray-500" data-i18n="editorial.dropZone.browse">or click to browse</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Description Input -->
+                <div class="mt-6">
+                    <label for="editorialDescription" class="block text-sm font-medium text-gray-700 mb-2" data-i18n="editorial.description.label">
+                        Description for all photos in the folder
+                    </label>
+                    <textarea id="editorialDescription" 
+                              rows="3" 
+                              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              data-i18n-placeholder="editorial.description.placeholder"></textarea>
+                </div>
+                
+                <!-- Process Button -->
+                <div class="mt-6">
+                    <button id="processEditorialBtn" 
+                            class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-play mr-2"></i>
+                        <span data-i18n="editorial.process">Process Editorial Photos</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Commercial Tab -->
+        <div id="commercial" class="tab-content">
+            <div class="bg-white shadow rounded-lg p-6">
+                <h2 class="text-lg font-medium text-gray-900 mb-4" data-i18n="commercial.title">Commercial Photo Processing</h2>
+                
+                <!-- Drag & Drop Zone -->
+                <div id="commercialDropZone" class="drop-zone border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors cursor-pointer">
+                    <div class="space-y-2">
+                        <i class="fas fa-cloud-upload-alt text-4xl text-gray-400"></i>
+                        <div>
+                            <p class="text-lg text-gray-600" data-i18n="commercial.dropZone.drag">Drag and drop a folder with photos here</p>
+                            <p class="text-sm text-gray-500" data-i18n="commercial.dropZone.browse">or click to browse</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Description Input -->
+                <div class="mt-6">
+                    <label for="commercialDescription" class="block text-sm font-medium text-gray-700 mb-2" data-i18n="commercial.description.label">
+                        Description for all photos in the folder
+                    </label>
+                    <textarea id="commercialDescription" 
+                              rows="3" 
+                              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              data-i18n-placeholder="commercial.description.placeholder"></textarea>
+                </div>
+                
+                <!-- Process Button -->
+                <div class="mt-6">
+                    <button id="processCommercialBtn" 
+                            class="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-play mr-2"></i>
+                        <span data-i18n="commercial.process">Process Commercial Photos</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Queue Tab -->
+        <div id="queue" class="tab-content">
+            <div class="bg-white shadow rounded-lg p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-lg font-medium text-gray-900" data-i18n="queue.title">Processing Queue</h2>
+                    <button id="refreshQueueBtn" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-sync-alt mr-1"></i> <span data-i18n="queue.refresh">Refresh</span>
+                    </button>
+                </div>
+                <div id="queueContainer">
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-tasks text-3xl mb-2"></i>
+                        <p data-i18n="queue.empty">No items in queue</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Review Tab -->
+        <div id="review" class="tab-content">
+            <div class="bg-white shadow rounded-lg p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-lg font-medium text-gray-900" data-i18n="review.title">Review Results</h2>
+                    <div class="flex space-x-2">
+                        <button id="refreshReviewBtn" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-sync-alt mr-1"></i> <span data-i18n="review.refresh">Refresh</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Batch Selector and Actions -->
+                <div class="mb-6">
+                    <label for="batchSelector" class="block text-sm font-medium text-gray-700 mb-2" data-i18n="review.selectBatch">Select Batch to Review</label>
+                    <div class="flex space-x-3">
+                        <select id="batchSelector" class="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="" data-i18n="review.selectBatchPlaceholder">Select a processed batch...</option>
+                        </select>
+                        
+                        <!-- Batch Actions -->
+                        <div id="batchActions" class="hidden flex space-x-2 flex-wrap">
+                            <!-- Bulk Actions -->
+                            <div class="flex space-x-1">
+                                <button id="approveAllBtn" 
+                                        class="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
+                                    <i class="fas fa-check-double mr-1"></i>
+                                    <span>Approve All</span>
+                                </button>
+                                <button id="rejectAllBtn" 
+                                        class="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
+                                    <i class="fas fa-times-circle mr-1"></i>
+                                    <span>Reject All</span>
+                                </button>
+                                <button id="regenerateAllBtn" 
+                                        class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
+                                    <i class="fas fa-sync-alt mr-1"></i>
+                                    <span>Regenerate All</span>
+                                </button>
+                            </div>
+                            
+                            <!-- Separator -->
+                            <div class="border-l border-gray-300 mx-2"></div>
+                            
+                            <!-- Main Actions -->
+                            <div class="flex space-x-2">
+                                <button id="uploadToStocksBtn" 
+                                        class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <i class="fas fa-upload mr-1"></i>
+                                    <span data-i18n="review.uploadToStocks">Upload to Stocks</span>
+                                </button>
+                                <button id="deleteBatchBtn" 
+                                        class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                                    <i class="fas fa-trash mr-1"></i>
+                                    <span data-i18n="review.deleteBatch">Delete Batch</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Photos Grid -->
+                <div id="reviewContainer">
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-images text-3xl mb-2"></i>
+                        <p data-i18n="review.empty">Select a batch to review results</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Tab -->
+        <div id="history" class="tab-content">
+            <div class="bg-white shadow rounded-lg p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-lg font-medium text-gray-900" data-i18n="history.title">Processing History</h2>
+                    <button id="refreshHistoryBtn" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-sync-alt mr-1"></i> <span data-i18n="history.refresh">Refresh</span>
+                    </button>
+                </div>
+                <div id="historyContainer">
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-history text-3xl mb-2"></i>
+                        <p data-i18n="history.empty">No processing history</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs Tab -->
+        <div id="logs" class="tab-content">
+            <div id="logs-content">
+                <div class="text-center py-8 text-gray-500">
+                    <i class="fas fa-file-alt text-3xl mb-2"></i>
+                    <p data-i18n="logs.selectBatchToView">Select a batch to view events</p>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center pb-4 border-b">
+                <h3 class="text-lg font-medium text-gray-900" data-i18n="settings.title">Settings</h3>
+                <button id="closeSettingsBtn" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Settings Tabs -->
+            <div class="mt-4">
+                <div class="border-b border-gray-200">
+                    <nav class="-mb-px flex space-x-8">
+                        <button class="settings-tab py-2 px-1 border-b-2 border-blue-500 text-blue-600 font-medium text-sm active" data-tab="general" data-i18n="settings.tabs.general">
+                            General
+                        </button>
+                        <button class="settings-tab py-2 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm" data-tab="ai" data-i18n="settings.tabs.ai">
+                            AI Settings
+                        </button>
+                        <button class="settings-tab py-2 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm" data-tab="stocks" data-i18n="settings.tabs.stocks">
+                            Stock Sites
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- General Settings -->
+                <div id="general-settings" class="settings-content active mt-6">
+                    <div class="grid grid-cols-1 gap-6">
+                        <!-- ExifTool Status -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">ExifTool Status</label>
+                            <div id="exifToolStatus" class="mt-1 p-3 rounded-md border">
+                                <div class="flex items-center">
+                                    <i id="exifToolIcon" class="fas fa-spinner fa-spin text-blue-500 mr-2"></i>
+                                    <span id="exifToolMessage" class="text-sm">Проверка доступности ExifTool...</span>
+                                </div>
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500">ExifTool требуется для записи метаданных в EXIF файлов. Без него метаданные будут доступны только через API загрузку.</p>
+                        </div>
+                        
+                        <div>
+                            <label for="tempDirectory" class="block text-sm font-medium text-gray-700" data-i18n="settings.general.tempDirectory">Temporary Directory</label>
+                            <input type="text" id="tempDirectory" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="thumbnailSize" class="block text-sm font-medium text-gray-700" data-i18n="settings.general.thumbnailSize">Thumbnail Size (px)</label>
+                            <input type="number" id="thumbnailSize" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="maxConcurrentJobs" class="block text-sm font-medium text-gray-700" data-i18n="settings.general.maxConcurrentJobs">Max Concurrent Jobs</label>
+                            <input type="number" id="maxConcurrentJobs" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="settingsLanguage" class="block text-sm font-medium text-gray-700" data-i18n="settings.general.language">Language</label>
+                            <select id="settingsLanguage" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                <option value="en" data-i18n="languages.en">English</option>
+                                <option value="ru" data-i18n="languages.ru">Русский</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Settings -->
+                <div id="ai-settings" class="settings-content mt-6">
+                    <div class="grid grid-cols-1 gap-6">
+                        <div>
+                            <label for="aiProvider" class="block text-sm font-medium text-gray-700" data-i18n="settings.ai.provider">AI Provider</label>
+                            <select id="aiProvider" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                <option value="openai">OpenAI</option>
+                                <option value="claude">Claude</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="aiModel" class="block text-sm font-medium text-gray-700" data-i18n="settings.ai.model">AI Model</label>
+                            <!-- Custom Model Selector -->
+                            <div class="relative mt-1">
+                                <div class="ai-model-selector">
+                                    <!-- Search/Input field -->
+                                    <input type="text" id="aiModelInput" data-i18n-placeholder="settings.ai.modelSearch"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                           autocomplete="off">
+                                    
+                                    <!-- Dropdown arrow -->
+                                    <button type="button" id="aiModelToggle" class="absolute inset-y-0 right-0 flex items-center px-2 text-gray-400 hover:text-gray-600">
+                                        <i class="fas fa-chevron-down"></i>
+                                    </button>
+                                    
+                                    <!-- Dropdown menu -->
+                                    <div id="aiModelDropdown" class="hidden absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-auto">
+                                        <div class="p-2">
+                                            <div id="aiModelList" class="space-y-1">
+                                                <!-- Models will be populated here -->
+                                            </div>
+                                            <div id="aiModelEmpty" class="hidden p-2 text-gray-500 text-sm text-center" data-i18n="settings.ai.modelNoResults">
+                                                No models found. You can type a custom model name.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="modelDescription" class="mt-1 text-sm text-gray-500"></div>
+                        </div>
+                        <div>
+                            <label for="aiApiKey" class="block text-sm font-medium text-gray-700" data-i18n="settings.ai.apiKey">API Key</label>
+                            <input type="password" id="aiApiKey" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="aiBaseUrl" class="block text-sm font-medium text-gray-700" data-i18n="settings.ai.baseUrl">Base URL (optional)</label>
+                            <input type="url" id="aiBaseUrl" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="aiTimeout" class="block text-sm font-medium text-gray-700" data-i18n="settings.ai.timeout">AI Request Timeout (seconds)</label>
+                            <input type="number" id="aiTimeout" min="30" max="300" value="90" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <p class="mt-1 text-sm text-gray-500" data-i18n="settings.ai.timeoutHelp">Timeout for AI API requests (30-300 seconds)</p>
+                        </div>
+                        <div>
+                            <label for="aiMaxTokens" class="block text-sm font-medium text-gray-700" data-i18n="settings.ai.maxTokens">Max Response Tokens</label>
+                            <input type="number" id="aiMaxTokens" min="500" max="4000" value="2000" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <p class="mt-1 text-sm text-gray-500" data-i18n="settings.ai.maxTokensHelp">Maximum tokens in AI response (500-4000)</p>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <button id="testAiConnectionBtn" type="button" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700" data-i18n="settings.ai.testConnection">
+                                Test Connection
+                            </button>
+                            <div class="space-x-2">
+                                <button id="loadModelsBtn" type="button" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700" data-i18n="settings.ai.loadModels">
+                                    Load Models
+                                </button>
+                                <button id="forceUpdatePromptsBtn" type="button" class="bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700" data-i18n="settings.ai.forceUpdatePrompts">
+                                    Update Prompts
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-center">
+                                <label for="editorialPrompt" class="block text-sm font-medium text-gray-700" data-i18n="settings.ai.editorialPrompt">Editorial Photos Prompt</label>
+                                <button type="button" id="resetEditorialPromptBtn" class="text-sm text-blue-600 hover:text-blue-800" data-i18n="settings.ai.resetToDefault">Reset to Default</button>
+                            </div>
+                            <textarea id="editorialPrompt" rows="6" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"></textarea>
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-center">
+                                <label for="commercialPrompt" class="block text-sm font-medium text-gray-700" data-i18n="settings.ai.commercialPrompt">Commercial Photos Prompt</label>
+                                <button type="button" id="resetCommercialPromptBtn" class="text-sm text-blue-600 hover:text-blue-800" data-i18n="settings.ai.resetToDefault">Reset to Default</button>
+                            </div>
+                            <textarea id="commercialPrompt" rows="6" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stock Sites Settings -->
+                <div id="stocks-settings" class="settings-content mt-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h4 class="text-md font-medium text-gray-900" data-i18n="settings.stocks.title">Configured Stock Sites</h4>
+                        <button id="addStockBtn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                            <i class="fas fa-plus mr-2"></i><span data-i18n="settings.stocks.add">Add Stock Site</span>
+                        </button>
+                    </div>
+                    <div id="stocksContainer">
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-store text-3xl mb-2"></i>
+                            <p data-i18n="settings.stocks.empty">No stock sites configured</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-3 mt-6 pt-4 border-t">
+                <button id="saveSettingsBtn" class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700" data-i18n="settings.save">
+                    Save Settings
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Stock Modal -->
+    <div id="addStockModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-2xl shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center pb-4 border-b">
+                <h3 class="text-lg font-medium text-gray-900" data-i18n="addStock.title">Add Stock Site</h3>
+                <button id="closeAddStockBtn" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <form id="addStockForm" class="mt-6">
+                <div class="grid grid-cols-1 gap-6">
+                    <!-- Тип подключения -->
+                    <div>
+                        <label for="stockType" class="block text-sm font-medium text-gray-700" data-i18n="addStock.fields.type">Connection Type</label>
+                        <select name="stockType" id="stockType" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="" data-i18n="addStock.fields.selectType">-- Select connection type --</option>
+                            <option value="ftp">FTP</option>
+                            <option value="sftp">SFTP</option>
+                        </select>
+                        <p class="mt-1 text-sm text-gray-500" id="stockTypeDescription"></p>
+                    </div>
+
+                    <div>
+                        <label for="id" class="block text-sm font-medium text-gray-700" data-i18n="addStock.fields.id">Stock ID</label>
+                        <input type="text" name="id" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-gray-700" data-i18n="addStock.fields.name">Stock Name</label>
+                        <input type="text" name="name" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700" data-i18n="addStock.fields.supportedTypes">Supported Photo Types</label>
+                        <div class="mt-2 space-y-2">
+                            <label class="inline-flex items-center">
+                                <input type="checkbox" name="supportedTypes" value="editorial" class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                                <span class="ml-2" data-i18n="tabs.editorial">Editorial</span>
+                            </label>
+                            <label class="inline-flex items-center ml-6">
+                                <input type="checkbox" name="supportedTypes" value="commercial" class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                                <span class="ml-2" data-i18n="tabs.commercial">Commercial</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Динамические поля в зависимости от типа -->
+                    <div id="dynamicFields">
+                        <!-- Поля будут добавлены через JavaScript -->
+                    </div>
+                    
+                    <!-- Кнопка тестирования соединения -->
+                    <div id="testConnectionContainer" class="hidden">
+                        <button type="button" id="testStockConnectionBtn" class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fas fa-plug mr-2"></i>
+                            <span data-i18n="addStock.testConnection">Test Connection</span>
+                        </button>
+                        <div id="testConnectionResult" class="mt-2 hidden">
+                            <!-- Результат тестирования будет показан здесь -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-3 mt-6 pt-4 border-t">
+                    <button type="button" id="cancelAddStockBtn" class="bg-gray-300 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-400" data-i18n="addStock.cancel">
+                        Cancel
+                    </button>
+                    <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700" data-i18n="addStock.add">
+                        Add Stock Site
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module" src="./src/i18n.js"></script>
+    <script type="module" src="./src/main.js"></script>
+</body>
+</html>

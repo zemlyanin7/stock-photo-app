@@ -1,0 +1,37 @@
+# Обработка переносов строк
+* text=auto
+
+# Файлы с принудительным LF
+*.go text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Файлы с принудительным CRLF
+*.bat text eol=crlf
+
+# Бинарные файлы
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.exe binary
+*.app binary
+*.dmg binary
+*.zip binary
+*.tar.gz binary
+*.db binary
+*.sqlite binary
+*.sqlite3 binary
+
+# Игнорировать в экспорте (архивах)
+.gitignore export-ignore
+.gitattributes export-ignore
+.DS_Store export-ignore
+temp/ export-ignore
+releases/ export-ignore
+build/bin/ export-ignore 

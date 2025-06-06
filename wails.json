@@ -1,0 +1,58 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "stock-photo-app",
+  "outputfilename": "stock-photo-app",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "author": {
+    "name": "Stock Photo Automation",
+    "email": "contact@example.com"
+  },
+  "info": {
+    "companyName": "Stock Photo Tools",
+    "productName": "Stock Photo Automation",
+    "productVersion": "1.0.0",
+    "copyright": "Copyright...",
+    "comments": "AI-powered stock photo automation tool"
+  },
+  "build": {
+    "appCategory": "Photography",
+    "targets": [
+      {
+        "name": "stock-photo-app",
+        "arch": ["amd64"],
+        "os": ["windows", "darwin"]
+      }
+    ]
+  },
+  "AssetServer": {
+    "Assets": {
+      "Handler": "embed"
+    }
+  },
+  "BackgroundColour": "#27272a",
+  "OnStartup": true,
+  "OnDomReady": true,
+  "OnBeforeClose": true,
+  "OnShutdown": true,
+  "WindowStartState": "normal",
+  "AlwaysOnTop": false,
+  "ResizeDebounce": 16,
+  "DisableResize": false,
+  "Fullscreen": false,
+  "MinWidth": 1024,
+  "MinHeight": 768,
+  "MaxWidth": 1400,
+  "MaxHeight": 1050,
+  "StartHidden": false,
+  "HideWindowOnClose": false,
+  "RGBA": [27, 38, 54, 255],
+  "Menu": null,
+  "Logger": null,
+  "LogLevel": "Debug",
+  "LogLevelProduction": "Error",
+  "debug": {
+    "openInspectorOnStartup": false
+  }
+}

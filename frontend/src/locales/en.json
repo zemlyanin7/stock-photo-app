@@ -1,0 +1,300 @@
+{
+  "app": {
+    "title": "Stock Photo Automation",
+    "initializing": "Initializing application...",
+    "ready": "Application is ready",
+    "error": "An error occurred"
+  },
+  "navigation": {
+    "settings": "Settings"
+  },
+    "tabs": {
+    "editorial": "Editorial Photos",
+    "commercial": "Commercial Photos", 
+    "queue": "Processing Queue",
+    "review": "Review Results",
+    "history": "History",
+    "logs": "Logs"
+  },
+  "editorial": {
+    "title": "Editorial Photo Processing",
+    "dropZone": {
+      "drag": "Drag and drop a folder with photos here",
+      "browse": "or click to browse",
+      "selected": "Folder selected"
+    },
+    "description": {
+      "label": "Description for all photos in the folder (optional)",
+      "placeholder": "Optional: Describe what's in these photos (e.g., 'Street photography in downtown Berlin during rush hour')"
+    },
+    "process": "Process Editorial Photos",
+    "processing": "Processing..."
+  },
+  "commercial": {
+    "title": "Commercial Photo Processing",
+    "dropZone": {
+      "drag": "Drag and drop a folder with photos here",
+      "browse": "or click to browse",
+      "selected": "Folder selected"
+    },
+    "description": {
+      "label": "Description for all photos in the folder (optional)",
+      "placeholder": "Optional: Describe what's in these photos (e.g., 'Business meeting in modern office space')"
+    },
+    "process": "Process Commercial Photos",
+    "processing": "Processing..."
+  },
+  "queue": {
+    "title": "Processing Queue",
+    "refresh": "Refresh",
+    "empty": "No items in queue",
+    "progress": "Progress",
+    "current": "Current",
+    "error": "Error",
+    "type": "Type",
+    "photos": "Photos",
+    "currentStep": "Current Step",
+    "viewLogs": "View Logs",
+    "detailedLogs": "Detailed Logs",
+    "steps": {
+      "initialization": "Initialization",
+      "aiProcessing": "AI Processing", 
+      "uploading": "Uploading",
+      "completed": "Completed"
+    }
+  },
+  "review": {
+    "title": "Review Results",
+    "refresh": "Refresh",
+    "empty": "Select a batch to review results",
+    "selectBatch": "Select Batch to Review",
+    "selectBatchPlaceholder": "Select a processed batch...",
+    "noBatches": "No processed batches available for review",
+    "noPhotos": "No photos found in this batch",
+    "approve": "Approve",
+    "reject": "Reject",
+    "edit": "Edit",
+    "regenerate": "Regenerate",
+    "upload": "Upload to Stocks",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "pending": "Pending",
+    "processing": "Processing",
+    "processed": "Processed",
+    "failed": "Failed",
+    "title_field": "Title",
+    "description_field": "Description",
+    "keywords_field": "Keywords",
+    "category_field": "Category",
+    "quality_field": "Quality",
+    "save": "Save",
+    "cancel": "Cancel",
+    "details": "Details",
+    "noAI": "No AI analysis available",
+    "uploadToStocks": "Upload to Stocks",
+    "deleteBatch": "Delete Batch",
+    "noApprovedPhotos": "No approved photos to upload",
+    "uploadApprovedPhotos": "Upload {{count}} approved photos to stocks",
+    "noBatchSelected": "No batch selected",
+    "uploadStarted": "Upload to stocks started successfully",
+    "uploadError": "Failed to start upload to stocks",
+    "confirmDelete": "Are you sure you want to delete this batch and all its photos? This action cannot be undone.",
+    "batchDeleted": "Batch deleted successfully",
+    "deleteError": "Failed to delete batch"
+  },
+  "history": {
+    "title": "Processing History",
+    "refresh": "Refresh",
+    "empty": "No processing history"
+  },
+  "settings": {
+    "title": "Settings",
+    "close": "Close",
+    "save": "Save Settings",
+    "saved": "Settings saved successfully",
+    "tabs": {
+      "general": "General",
+      "ai": "AI Settings",
+      "stocks": "Stock Sites"
+    },
+    "general": {
+      "tempDirectory": "Temporary Directory",
+      "thumbnailSize": "Thumbnail Size (px)",
+      "maxConcurrentJobs": "Max Concurrent Jobs",
+      "maxConcurrentJobsHelp": "Number of photos to process simultaneously (1-10). More workers = faster processing but higher resource usage.",
+      "language": "Language"
+    },
+    "ai": {
+      "provider": "AI Provider",
+      "model": "AI Model",
+      "modelSearch": "Search models or type custom model...",
+      "modelNoResults": "No models found. You can type a custom model name.",
+      "modelCustom": "Custom model",
+      "apiKey": "API Key",
+      "baseUrl": "Base URL (optional)",
+      "timeout": "AI Request Timeout (seconds)",
+      "timeoutHelp": "Timeout for AI API requests (30-300 seconds)",
+      "maxTokens": "Max Response Tokens",
+      "maxTokensHelp": "Maximum tokens in AI response (500-4000)",
+      "testConnection": "Test Connection",
+      "testSuccess": "AI connection test successful",
+      "testFailed": "AI connection test failed",
+      "testing": "Testing...",
+      "loadModels": "Load Models",
+      "loadingModels": "Loading models...",
+      "modelsLoaded": "Models loaded successfully",
+      "modelsLoadFailed": "Failed to load models",
+      "editorialPrompt": "Editorial Photos Prompt",
+      "commercialPrompt": "Commercial Photos Prompt",
+      "resetToDefault": "Reset to Default",
+      "forceUpdatePrompts": "Update Prompts",
+      "updatingPrompts": "Updating prompts...",
+      "promptsUpdated": "Prompts updated successfully"
+    },
+    "stocks": {
+      "title": "Configured Stock Sites",
+      "add": "Add Stock Site",
+      "empty": "No stock sites configured",
+      "edit": "Edit",
+      "delete": "Delete",
+      "test": "Test Connection",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "active": "Active",
+      "inactive": "Inactive"
+    }
+  },
+  "addStock": {
+    "title": "Add Stock Site",
+    "editTitle": "Edit Stock Site",
+    "close": "Close",
+    "cancel": "Cancel",
+    "add": "Add Stock Site",
+    "save": "Save Changes",
+    "updated": "Stock configuration updated successfully",
+    "fields": {
+      "id": "Stock ID",
+      "name": "Stock Name",
+      "type": "Connection Type",
+      "selectType": "-- Select connection type --",
+      "supportedTypes": "Supported Photo Types",
+      "uploadMethod": "Upload Method",
+      "host": "Host",
+      "port": "Port",
+      "username": "Username",
+      "password": "Password",
+      "path": "Remote Path",
+      "apiUrl": "API URL",
+      "apiKey": "API Key",
+      "timeout": "Timeout (sec)",
+      "passive": "Passive Mode",
+      "useSSL": "Use SSL",
+      "encryption": "Encryption",
+      "verifyCert": "Verify SSL Certificates"
+    },
+    "types": {
+      "ftp": {
+        "name": "FTP",
+        "description": "Upload files via FTP protocol"
+      },
+      "sftp": {
+        "name": "SFTP",
+        "description": "Upload files via SFTP protocol"
+      },
+      "api": {
+        "name": "API",
+        "description": "Upload files via REST API"
+      }
+    },
+    "fieldLabels": {
+      "ftpServer": "FTP Server",
+      "sftpServer": "SFTP Server",
+      "username": "Username",
+      "password": "Password",
+      "remotePath": "Remote Folder",
+      "passiveMode": "Passive Mode",
+      "timeout": "Timeout (sec)",
+      "encryption": "Encryption Type",
+      "verifyCert": "Verify SSL Certificates"
+    },
+    "encryption": {
+      "none": "No encryption (insecure)",
+      "auto": "Use FTPS if available",
+      "explicit": "Require explicit FTPS",
+      "implicit": "Require implicit FTPS"
+    },
+    "success": "Stock configuration added successfully",
+    "error": "Error adding stock configuration",
+    "deleteConfirm": "Are you sure you want to delete this stock configuration?",
+    "deleted": "Stock configuration deleted",
+    "testConnection": "Test Connection",
+    "testingConnection": "Testing connection...",
+    "connectionSuccess": "Connection successful",
+    "connectionFailed": "Connection test failed"
+  },
+  "notifications": {
+    "folderSelected": "Selected folder",
+    "selectFolder": "Please select a folder first",
+    "enterDescription": "Please enter a description",
+    "photosQueued": "Photos added to processing queue",
+    "errorProcessing": "Error processing photos",
+    "errorLoading": "Error loading settings",
+    "errorSaving": "Error saving settings",
+    "errorQueue": "Error updating queue",
+    "errorHistory": "Error updating history",
+    "fileBrowserNotImplemented": "File browser not implemented in demo. Use drag & drop.",
+
+    "noValidImages": "No valid images found in selected folder",
+    "validImages": "valid images",
+    "invalidFiles": "invalid files",
+    "totalFiles": "Total files",
+    "viewFiles": "View files list",
+    "filesInFolder": "Files in folder",
+    "dragFolderNotSupported": "Please use the folder selection dialog instead of drag & drop",
+    "demoMode": "Demo mode - folder selection not available",
+    "dragNotSupported": "File dragging is only available in desktop application",
+    "useBrowseButton": "To select a folder use the 'Browse' button or click on the area",
+    "cannotDetermineFolder": "Cannot determine folder from dragged files. Use 'Browse' button",
+    "dragFilesHint": "Please drag files or use 'Browse' button to select folder",
+    "folderSelectionError": "Cannot determine folder. Use 'Browse' button to select folder",
+    "desktopAppOnly": "Folder selection is only available in desktop application. Run with wails dev or wails build.",
+    "dragToAreas": "Drag files to Editorial or Commercial area",
+    "cannotDetermineFromFile": "Cannot determine folder from file",
+    "dragProcessingError": "Error processing dragged files: {{error}}",
+    "appModeOnly": "this method is only available in the real application",
+    "folderSelectionDesktopOnly": "Folder selection is only available in desktop application",
+    "notSpecified": "not specified",
+    "noActiveStocks": "No active stock configurations found for this photo type. Please configure stocks in Settings > Stocks.",
+    "noApprovedPhotos": "No approved photos found for upload",
+    "batchDeleted": "Batch deleted successfully",
+    "metadataUpdatedReapprove": "Metadata updated. Click Approve again to write EXIF to file.",
+    "metadataSaved": "Metadata saved successfully"
+  },
+  "languages": {
+    "en": "English",
+    "ru": "Русский"
+  },
+  "logs": {
+    "title": "Event Logs",
+    "noBatches": "No batches available",
+    "selectBatch": "Select batch",
+    "selectBatchToView": "Select a batch to view events",
+    "refresh": "Refresh",
+    "loadError": "Failed to load logs",
+    "noEvents": "No events found",
+    "batchSummary": "Batch Summary",
+    "status": "Status",
+    "progress": "Progress",
+    "totalPhotos": "Total Photos",
+    "currentStep": "Current Step",
+    "showDetails": "Show details",
+    "eventTypes": {
+      "batchStart": "Batch Start",
+      "aiProcessing": "AI Processing",
+      "ftpUpload": "FTP Upload",
+      "batchComplete": "Batch Complete",
+      "error": "Error",
+      "other": "Other"
+    }
+  }
+} 
