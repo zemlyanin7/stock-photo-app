@@ -92,10 +92,13 @@ $RECYCLE.BIN/
 .settings/
 .metadata
 
-# Архивы релизов (по желанию - можно оставить для скачивания)
+# Архивы релизов (должны быть только в GitHub Releases)
 releases/*.zip
 releases/*.tar.gz
 releases/*.dmg
+stock-photo-app-*.zip
+stock-photo-app-*.tar.gz
+stock-photo-app-*.dmg
 
 # Логи сборок
 npm-debug.log*

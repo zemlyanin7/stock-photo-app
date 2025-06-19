@@ -10,18 +10,30 @@
    - Создайте новую секцию `[Unreleased]`
 
 2. **Соберите приложения**:
+
+   **Основные платформы (macOS):**
    ```bash
    # macOS Intel
    wails build -platform darwin/amd64 -clean
-   cd build/bin && zip -r ../../stock-photo-app-macos-intel.zip stock-photo-app.app && cd ../..
+   cd build/bin && zip -r ../../stock-photo-app-macos-intel-v[VERSION].zip stock-photo-app.app && cd ../..
    
    # macOS Apple Silicon  
    wails build -platform darwin/arm64
-   cd build/bin && zip -r ../../stock-photo-app-macos-arm64.zip stock-photo-app.app && cd ../..
+   cd build/bin && zip -r ../../stock-photo-app-macos-arm64-v[VERSION].zip stock-photo-app.app && cd ../..
+   ```
+
+   **Другие платформы (дополнительно):**
    
-   # Windows (требует Windows машину или cross-compilation)
+   *Windows*: Кросс-компиляция не работает из-за CGO зависимостей.
+   ```bash
+   # Требует Windows машину или виртуализацию
    wails build -platform windows/amd64
-   cd build/bin && zip -r ../../stock-photo-app-windows.zip stock-photo-app.exe && cd ../..
+   cd build/bin && zip -r ../../stock-photo-app-windows-v[VERSION].zip stock-photo-app.exe && cd ../..
+   ```
+   
+   *Linux* (экспериментально):
+   ```bash
+   wails build -platform linux/amd64
    ```
 
 ### 2. Создание релиза на GitHub
@@ -36,9 +48,9 @@
    - **Description**: Скопируйте из CHANGELOG.md для этой версии
 
 4. **Прикрепите файлы**:
-   - `stock-photo-app-macos-intel.zip`
-   - `stock-photo-app-macos-arm64.zip`
-   - `stock-photo-app-windows.zip`
+   - `stock-photo-app-macos-intel-v[VERSION].zip`
+   - `stock-photo-app-macos-arm64-v[VERSION].zip`
+   - `stock-photo-app-windows-v[VERSION].zip` (если собрано)
 
 5. **Опубликуйте релиз**
 
