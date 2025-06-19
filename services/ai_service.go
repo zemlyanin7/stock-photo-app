@@ -15,12 +15,22 @@ import (
 type AIService struct {
 	httpClient    *http.Client
 	exifProcessor *EXIFProcessor
+	logger        *Logger
 }
 
 func NewAIService() *AIService {
 	return &AIService{
 		httpClient:    &http.Client{}, // таймаут будет устанавливаться динамически
 		exifProcessor: NewEXIFProcessor(),
+		logger:        nil, // для обратной совместимости
+	}
+}
+
+func NewAIServiceWithLogger(logger *Logger) *AIService {
+	return &AIService{
+		httpClient:    &http.Client{}, // таймаут будет устанавливаться динамически
+		exifProcessor: NewEXIFProcessor(),
+		logger:        logger,
 	}
 }
 
@@ -98,8 +108,36 @@ func (s *AIService) AnalyzePhoto(photo models.Photo, description string, content
 		}
 	}
 
+	// Логируем для отладки настроек промптов
+	if s.logger != nil {
+		s.logger.LogAI("AI Analysis Debug Info:")
+		s.logger.LogAI("- Content type: %s", contentType)
+		s.logger.LogAI("- Settings.AIPrompts != nil: %t", settings.AIPrompts != nil)
+		if settings.AIPrompts != nil {
+			s.logger.LogAI("- Available prompt keys: %v", getKeys(settings.AIPrompts))
+			s.logger.LogAI("- Prompt found for %s: %t", contentType, prompt != "")
+			if prompt != "" {
+				s.logger.LogAI("- Prompt length: %d characters", len(prompt))
+				s.logger.LogAI("- Prompt preview (first 200 chars): %.200s...", prompt)
+			}
+		}
+	} else {
+		log.Printf("AI Analysis Debug Info:")
+		log.Printf("- Content type: %s", contentType)
+		log.Printf("- Settings.AIPrompts != nil: %t", settings.AIPrompts != nil)
+		if settings.AIPrompts != nil {
+			log.Printf("- Available prompt keys: %v", getKeys(settings.AIPrompts))
+			log.Printf("- Prompt found for %s: %t", contentType, prompt != "")
+			if prompt != "" {
+				log.Printf("- Prompt length: %d characters", len(prompt))
+				log.Printf("- Prompt preview (first 200 chars): %.200s...", prompt)
+			}
+		}
+	}
+
 	// Используем fallback промпт если не найден
 	if prompt == "" {
+		log.Printf("WARNING: No prompt found for content type '%s', using fallback", contentType)
 		if contentType == "editorial" {
 			prompt = "Analyze this editorial photograph and create factual metadata with specific location and time information."
 		} else {
@@ -115,6 +153,15 @@ func (s *AIService) AnalyzePhoto(photo models.Photo, description string, content
 	default:
 		return nil, fmt.Errorf("unsupported AI provider: %s", settings.AIProvider)
 	}
+}
+
+// getKeys возвращает ключи map[string]string для логирования
+func getKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
 }
 
 // analyzeWithOpenAI анализирует изображение через OpenAI API с retry логикой
@@ -151,7 +198,20 @@ func (s *AIService) analyzePhotoAttempt(photo models.Photo, description string, 
 	}
 
 	// Формируем полный промпт с учетом типа контента
-	fullPrompt := s.exifProcessor.BuildContextualPrompt(contentType, prompt, photo.ExifData)
+	fullPrompt := s.exifProcessor.BuildContextualPrompt(contentType, prompt, photo.ExifData, description)
+
+	// Логируем полный промпт для отладки
+	if s.logger != nil {
+		s.logger.LogAIPrompt(photo.FileName, fullPrompt, description)
+		s.logger.LogAI("EXIF data fields count: %d", len(photo.ExifData))
+	} else {
+		log.Printf("Full contextual prompt being sent to AI:")
+		log.Printf("==== START PROMPT ====")
+		log.Printf("%s", fullPrompt)
+		log.Printf("==== END PROMPT ====")
+		log.Printf("Photo filename: %s", photo.FileName)
+		log.Printf("EXIF data fields count: %d", len(photo.ExifData))
+	}
 
 	// Создаем запрос
 	model := settings.AIModel
@@ -176,7 +236,7 @@ func (s *AIService) analyzePhotoAttempt(photo models.Photo, description string, 
 					},
 					"description": {
 						Type:        "string",
-						Description: "Описание фотографии (до 500 символов)",
+						Description: "Описание фотографии (до 200 символов для Commercial, до 500 для Editorial)",
 					},
 					"keywords": {
 						Type:        "array",
@@ -230,19 +290,35 @@ func (s *AIService) analyzePhotoAttempt(photo models.Photo, description string, 
 	}
 
 	// Парсим ответ
-	result, err := s.parseAIResponse(response.Choices[0].Message.Content)
+	result, err := s.parseAIResponse(response.Choices[0].Message.Content, photo.FileName)
 	if err != nil {
 		return nil, err
 	}
 
 	// Устанавливаем тип контента в результате
 	result.ContentType = contentType
+
+	// Валидируем длину описания в зависимости от типа контента
+	if contentType == "commercial" && len([]rune(result.Description)) > 200 {
+		runes := []rune(result.Description)
+		log.Printf("Warning: Commercial description exceeds 200 characters (%d chars), truncating", len(runes))
+		if len(runes) > 197 {
+			result.Description = string(runes[:197]) + "..."
+		}
+	} else if contentType == "editorial" && len([]rune(result.Description)) > 500 {
+		runes := []rune(result.Description)
+		log.Printf("Warning: Editorial description exceeds 500 characters (%d chars), truncating", len(runes))
+		if len(runes) > 497 {
+			result.Description = string(runes[:497]) + "..."
+		}
+	}
+
 	return result, nil
 }
 
 // analyzeWithClaude анализирует изображение через Claude API
 func (s *AIService) analyzeWithClaude(photo models.Photo, description string, prompt string, contentType string, settings models.AppSettings) (*models.AIResult, error) {
-	// TODO: Реализовать интеграцию с Claude API
+	// Claude API интеграция будет добавлена в будущем
 	// Пока что заглушка
 	log.Printf("Claude API integration not implemented yet")
 
@@ -394,8 +470,12 @@ func (s *AIService) sendOpenAIRequest(request OpenAIRequest, settings models.App
 }
 
 // parseAIResponse парсит ответ от AI и извлекает JSON
-func (s *AIService) parseAIResponse(content string) (*models.AIResult, error) {
-	log.Printf("DEBUG: AI response content: %s", content)
+func (s *AIService) parseAIResponse(content string, photoFileName string) (*models.AIResult, error) {
+	if s.logger != nil {
+		s.logger.LogAIResponse(photoFileName, content)
+	} else {
+		log.Printf("DEBUG: AI response content: %s", content)
+	}
 
 	// Проверяем пустой ответ
 	if strings.TrimSpace(content) == "" {
@@ -493,7 +573,7 @@ func (s *AIService) testOpenAIConnection(settings models.AppSettings) error {
 
 // testClaudeConnection тестирует подключение к Claude
 func (s *AIService) testClaudeConnection(settings models.AppSettings) error {
-	// TODO: Реализовать тестирование Claude API
+	// Claude API тестирование будет добавлено в будущем
 	log.Printf("Claude API connection test not implemented yet")
 	return nil
 }

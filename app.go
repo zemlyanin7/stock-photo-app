@@ -11,6 +11,7 @@ import (
 	"stock-photo-app/models"
 	"stock-photo-app/services"
 	"stock-photo-app/uploaders"
+	"strings"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -19,13 +20,15 @@ import (
 
 // App struct
 type App struct {
-	ctx             context.Context
-	db              *sql.DB
-	aiService       *services.AIService
-	imageProc       *services.ImageProcessor
-	dbService       *services.DatabaseService
-	uploaderManager *uploaders.UploaderManager
-	queueManager    *services.QueueManager
+	ctx                context.Context
+	db                 *sql.DB
+	logger             *services.Logger
+	imageProc          *services.ImageProcessor
+	aiService          *services.AIService
+	dbService          *services.DatabaseService
+	queueManager       *services.QueueManager
+	uploadQueueManager *services.UploadQueueManager
+	uploaderManager    *uploaders.UploaderManager
 }
 
 // NewApp creates a new App application struct
@@ -38,19 +41,46 @@ func NewApp() *App {
 func (a *App) OnStartup(ctx context.Context) {
 	a.ctx = ctx
 
+	// Инициализация логгера
+	logger, err := services.NewLogger("./logs")
+	if err != nil {
+		log.Fatal("Failed to initialize logger:", err)
+	}
+	a.logger = logger
+
 	// Инициализация базы данных
 	db, err := sql.Open("sqlite3", "./app.db")
 	if err != nil {
+		a.logger.LogError("Failed to open database: %v", err)
 		log.Fatal("Failed to open database:", err)
 	}
 	a.db = db
 
+	// Настраиваем SQLite для лучшей производительности и concurrent доступа
+	_, err = db.Exec("PRAGMA journal_mode=WAL")
+	if err != nil {
+		log.Printf("Warning: Failed to set WAL mode: %v", err)
+	}
+	_, err = db.Exec("PRAGMA synchronous=NORMAL")
+	if err != nil {
+		log.Printf("Warning: Failed to set synchronous mode: %v", err)
+	}
+	_, err = db.Exec("PRAGMA cache_size=10000")
+	if err != nil {
+		log.Printf("Warning: Failed to set cache size: %v", err)
+	}
+	_, err = db.Exec("PRAGMA temp_store=MEMORY")
+	if err != nil {
+		log.Printf("Warning: Failed to set temp store: %v", err)
+	}
+
 	// Инициализация сервисов
 	a.dbService = services.NewDatabaseService(db)
-	a.aiService = services.NewAIService()
-	a.imageProc = services.NewImageProcessor("./temp")
+	a.aiService = services.NewAIServiceWithLogger(a.logger)
+	a.imageProc = services.NewImageProcessorWithLogger("./temp", a.logger)
 	a.uploaderManager = uploaders.NewUploaderManager(a.dbService)
 	a.queueManager = services.NewQueueManager(db, a.dbService, a.aiService, a.imageProc)
+	a.uploadQueueManager = services.NewUploadQueueManager(a.uploaderManager, a.dbService)
 
 	// Создание таблиц БД
 	err = a.dbService.InitializeTables()
@@ -78,6 +108,9 @@ func (a *App) OnDomReady(ctx context.Context) {
 // Returning true will cause the application to continue, false will continue shutdown as normal.
 func (a *App) OnBeforeClose(ctx context.Context) (prevent bool) {
 	a.db.Close()
+	if a.logger != nil {
+		a.logger.Close()
+	}
 	return false
 }
 
@@ -263,10 +296,11 @@ func (a *App) ForceUpdateDefaultPrompts() error {
    - Эмоциональное состояние (счастье, успех)
    - Универсальные формулировки
 
-2. ОПИСАНИЕ (до 200 символов):
+2. ОПИСАНИЕ (строго до 200 символов):
    - Общее описание без конкретики
    - Фокус на эмоциях и концепциях
    - Универсальность для разных контекстов
+   - ВАЖНО: Описание не должно превышать 200 символов
 
 3. КЛЮЧЕВЫЕ СЛОВА (48-55 слов):
    АНАЛИЗИРУЙ ИЗОБРАЖЕНИЕ и создавай ключевые слова на основе того, что РЕАЛЬНО видишь:
@@ -488,16 +522,25 @@ func (a *App) RegeneratePhotoMetadata(photoID string, customPrompt string) error
 		}
 	}
 
-	// Используем кастомный промпт если предоставлен
+	// Если есть комментарий пользователя, создаем диалог с AI
 	if customPrompt != "" {
+		// Получаем текущие AI результаты для создания контекста
+		var currentAIResult *models.AIResult
+		if photo.AIResult != nil {
+			currentAIResult = photo.AIResult
+		}
+
+		// Создаем промпт-диалог с текущими данными и комментарием пользователя
+		dialogPrompt := a.buildRegenerateDialogPrompt(currentAIResult, customPrompt, batchType)
+
 		// Временно заменяем промпт в настройках
 		if settings.AIPrompts == nil {
 			settings.AIPrompts = make(map[string]string)
 		}
 		originalPrompt := settings.AIPrompts[batchType]
-		settings.AIPrompts[batchType] = customPrompt
+		settings.AIPrompts[batchType] = dialogPrompt
 
-		// Анализируем фото
+		// Анализируем фото с новым промптом
 		aiResult, err := a.aiService.AnalyzePhoto(photo, batchDescription, batchType, settings)
 
 		// Восстанавливаем оригинальный промпт
@@ -510,7 +553,7 @@ func (a *App) RegeneratePhotoMetadata(photoID string, customPrompt string) error
 		// Сохраняем результаты
 		return a.UpdatePhotoMetadata(photoID, *aiResult)
 	} else {
-		// Используем стандартный промпт
+		// Используем стандартный промпт для полной регенерации
 		aiResult, err := a.aiService.AnalyzePhoto(photo, batchDescription, batchType, settings)
 		if err != nil {
 			return fmt.Errorf("failed to regenerate metadata: %w", err)
@@ -687,6 +730,50 @@ func (a *App) GetProcessedBatches() ([]models.PhotoBatch, error) {
 }
 
 // GetPhotoThumbnail возвращает thumbnail фото в виде base64
+// GetPhoto возвращает данные фотографии по ID
+func (a *App) GetPhoto(photoID string) (models.Photo, error) {
+	var photo models.Photo
+	var exifJSON, uploadStatusJSON, aiResultJSON string
+
+	err := a.db.QueryRow(`
+		SELECT id, batch_id, original_path, thumbnail_path, file_name, file_size,
+		       exif_data, upload_status, ai_results, status, created_at, updated_at
+		FROM photos WHERE id = ?`, photoID).Scan(
+		&photo.ID, &photo.BatchID, &photo.OriginalPath, &photo.ThumbnailPath,
+		&photo.FileName, &photo.FileSize, &exifJSON, &uploadStatusJSON,
+		&aiResultJSON, &photo.Status, &photo.CreatedAt, &photo.UpdatedAt)
+	if err != nil {
+		return photo, fmt.Errorf("failed to get photo: %w", err)
+	}
+
+	// Десериализуем JSON данные
+	if exifJSON != "" {
+		err = json.Unmarshal([]byte(exifJSON), &photo.ExifData)
+		if err != nil {
+			photo.ExifData = make(map[string]string)
+		}
+	}
+
+	if uploadStatusJSON != "" {
+		err = json.Unmarshal([]byte(uploadStatusJSON), &photo.UploadStatus)
+		if err != nil {
+			photo.UploadStatus = make(map[string]string)
+		}
+	}
+
+	if aiResultJSON != "" {
+		var aiResult models.AIResult
+		err = json.Unmarshal([]byte(aiResultJSON), &aiResult)
+		if err != nil {
+			photo.AIResult = nil
+		} else {
+			photo.AIResult = &aiResult
+		}
+	}
+
+	return photo, nil
+}
+
 func (a *App) GetPhotoThumbnail(photoID string) (string, error) {
 	// Получаем thumbnailPath из базы данных
 	var thumbnailPath string
@@ -785,6 +872,9 @@ func (a *App) GetBatchPhotos(batchID string) ([]models.Photo, error) {
 			photo.UploadStatus = make(map[string]string)
 		}
 
+		// Проверяем статус выбора для загрузки
+		photo.SelectedForUpload = photo.ExifData["_selected_for_upload"] == "true"
+
 		photos = append(photos, photo)
 	}
 
@@ -815,96 +905,353 @@ func (a *App) UploadApprovedPhotos(batchID string) error {
 	}
 	defer rows.Close()
 
-	var photos []models.Photo
+	var photoIDs []string
 	for rows.Next() {
-		var photo models.Photo
-		var aiResultsJSON string
-
-		err := rows.Scan(&photo.ID, &photo.OriginalPath, &photo.FileName, &aiResultsJSON)
+		var photoID, originalPath, fileName, aiResultsJSON string
+		err := rows.Scan(&photoID, &originalPath, &fileName, &aiResultsJSON)
 		if err != nil {
 			continue
 		}
-
-		// Десериализуем AI результаты
-		if aiResultsJSON != "" {
-			var aiResult models.AIResult
-			if json.Unmarshal([]byte(aiResultsJSON), &aiResult) == nil {
-				photo.AIResult = &aiResult
-			}
-		}
-
-		photo.BatchID = batchID
-		photo.ContentType = batchType
-		photos = append(photos, photo)
+		photoIDs = append(photoIDs, photoID)
 	}
 
-	if len(photos) == 0 {
+	if len(photoIDs) == 0 {
 		return fmt.Errorf("no approved photos found in batch")
 	}
 
-	// Получаем активные стоковые конфигурации для данного типа
-	stockConfigs, err := a.dbService.GetActiveStockConfigs(batchType)
+	// Запускаем очередь загрузки если не запущена
+	a.uploadQueueManager.StartUploadQueue()
+
+	// Добавляем фотографии в очередь загрузки
+	return a.uploadQueueManager.QueuePhotosForUpload(batchID, photoIDs)
+}
+
+// UploadSelectedPhotos загружает выбранные пользователем фотографии на стоки
+func (a *App) UploadSelectedPhotos(batchID string, photoIDs []string) error {
+	if len(photoIDs) == 0 {
+		return fmt.Errorf("no photos selected for upload")
+	}
+
+	// Запускаем очередь загрузки если не запущена
+	a.uploadQueueManager.StartUploadQueue()
+
+	// Добавляем выбранные фотографии в очередь загрузки
+	return a.uploadQueueManager.QueuePhotosForUpload(batchID, photoIDs)
+}
+
+// GetUploadQueueStatus возвращает статус очереди загрузки
+func (a *App) GetUploadQueueStatus() map[string]interface{} {
+	return a.uploadQueueManager.GetStatus()
+}
+
+// StopUploadQueue останавливает очередь загрузки
+func (a *App) StopUploadQueue() error {
+	a.uploadQueueManager.Stop()
+	return nil
+}
+
+// SetPhotoSelectedForUpload устанавливает статус выбора фотографии для загрузки
+func (a *App) SetPhotoSelectedForUpload(photoID string, selected bool) error {
+	// Обновляем статус в EXIF данных фотографии
+	var exifJSON string
+	err := a.db.QueryRow("SELECT exif_data FROM photos WHERE id = ?", photoID).Scan(&exifJSON)
 	if err != nil {
-		return fmt.Errorf("failed to get stock configs: %w", err)
+		return fmt.Errorf("failed to get photo EXIF data: %w", err)
 	}
 
-	if len(stockConfigs) == 0 {
-		return fmt.Errorf("no active stock configurations found for type: %s", batchType)
-	}
-
-	log.Printf("Starting upload of %d photos to %d stocks", len(photos), len(stockConfigs))
-
-	// Загружаем на каждый сток
-	for _, stockConfig := range stockConfigs {
-		for _, photo := range photos {
-			go func(stock models.StockConfig, p models.Photo) {
-				defer func() {
-					if r := recover(); r != nil {
-						log.Printf("Panic in upload goroutine for photo %s to stock %s: %v", p.FileName, stock.Name, r)
-						if err := a.dbService.UpdatePhotoUploadStatus(p.ID, stock.ID, "failed"); err != nil {
-							log.Printf("Failed to update upload status after panic: %v", err)
-						}
-					}
-				}()
-
-				err := a.uploadPhotoToStock(p, stock)
-				if err != nil {
-					log.Printf("Failed to upload photo %s to stock %s: %v", p.FileName, stock.Name, err)
-					if updateErr := a.dbService.UpdatePhotoUploadStatus(p.ID, stock.ID, "failed"); updateErr != nil {
-						log.Printf("Failed to update upload status to failed: %v", updateErr)
-					}
-				} else {
-					log.Printf("Successfully uploaded photo %s to stock %s", p.FileName, stock.Name)
-					if updateErr := a.dbService.UpdatePhotoUploadStatus(p.ID, stock.ID, "uploaded"); updateErr != nil {
-						log.Printf("Failed to update upload status to uploaded: %v", updateErr)
-					}
-				}
-			}(stockConfig, photo)
+	var exifData map[string]string
+	if exifJSON != "" {
+		err = json.Unmarshal([]byte(exifJSON), &exifData)
+		if err != nil {
+			log.Printf("WARNING: Failed to unmarshal EXIF data for photo %s: %v", photoID, err)
+			exifData = make(map[string]string) // создаем новый map при ошибке
 		}
+	} else {
+		exifData = make(map[string]string)
+	}
+
+	// Убеждаемся что map не nil перед записью
+	if exifData == nil {
+		exifData = make(map[string]string)
+	}
+
+	// Устанавливаем флаг выбора
+	if selected {
+		exifData["_selected_for_upload"] = "true"
+	} else {
+		delete(exifData, "_selected_for_upload")
+	}
+
+	// Сохраняем обратно
+	updatedExifJSON, err := json.Marshal(exifData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal EXIF data: %w", err)
+	}
+
+	_, err = a.db.Exec("UPDATE photos SET exif_data = ? WHERE id = ?", string(updatedExifJSON), photoID)
+	if err != nil {
+		return fmt.Errorf("failed to update photo selection: %w", err)
 	}
 
 	return nil
 }
 
-// uploadPhotoToStock загружает одно фото на конкретный сток
-func (a *App) uploadPhotoToStock(photo models.Photo, stockConfig models.StockConfig) error {
-	// Используем uploaderManager для загрузки
-	uploader, err := a.uploaderManager.GetUploader(stockConfig.Type)
+// GetPhotoSelectionStatus возвращает статус выбора фотографии
+func (a *App) GetPhotoSelectionStatus(photoID string) (bool, error) {
+	var exifJSON string
+	err := a.db.QueryRow("SELECT exif_data FROM photos WHERE id = ?", photoID).Scan(&exifJSON)
 	if err != nil {
-		return fmt.Errorf("failed to get uploader for %s: %w", stockConfig.Type, err)
+		return false, fmt.Errorf("failed to get photo exif data: %w", err)
 	}
 
-	// Обновляем статус на "uploading"
-	a.dbService.UpdatePhotoUploadStatus(photo.ID, stockConfig.ID, "uploading")
-
-	// Выполняем загрузку
-	result, err := uploader.Upload(photo, stockConfig)
-	if err != nil {
-		return fmt.Errorf("upload failed: %w", err)
+	if exifJSON == "" {
+		return false, nil
 	}
 
-	log.Printf("Upload result for %s to %s: %+v", photo.FileName, stockConfig.Name, result)
+	exifData := make(map[string]string)
+	err = json.Unmarshal([]byte(exifJSON), &exifData)
+	if err != nil {
+		return false, nil
+	}
 
+	return exifData["_selected_for_upload"] == "true", nil
+}
+
+// SelectAllPhotosForUpload выбирает все фотографии в батче для загрузки
+func (a *App) SelectAllPhotosForUpload(batchID string) error {
+	// Проверяем что batchID не пустой
+	if batchID == "" {
+		log.Printf("ERROR: SelectAllPhotosForUpload called with empty batchID")
+		return fmt.Errorf("batch ID cannot be empty")
+	}
+
+	log.Printf("SelectAllPhotosForUpload called with batchID: %s", batchID)
+
+	// Retry логика для database lock
+	maxRetries := 5
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		err := a.selectAllPhotosForUploadAttempt(batchID)
+		if err == nil {
+			return nil
+		}
+
+		if strings.Contains(err.Error(), "database is locked") {
+			log.Printf("Database locked on attempt %d/%d, retrying...", attempt, maxRetries)
+			time.Sleep(time.Duration(attempt*100) * time.Millisecond) // увеличивающаяся задержка
+			continue
+		}
+
+		// Если это не database lock, возвращаем ошибку сразу
+		return err
+	}
+
+	return fmt.Errorf("failed to select all photos after %d attempts: database is locked", maxRetries)
+}
+
+// selectAllPhotosForUploadAttempt выполняет одну попытку выбора всех фото
+func (a *App) selectAllPhotosForUploadAttempt(batchID string) error {
+	// Сначала проверяем, существует ли батч
+	var count int
+	err := a.db.QueryRow("SELECT COUNT(*) FROM batches WHERE id = ?", batchID).Scan(&count)
+	if err != nil {
+		log.Printf("ERROR: Failed to check batch existence for ID %s: %v", batchID, err)
+		return fmt.Errorf("failed to verify batch existence: %w", err)
+	}
+	if count == 0 {
+		log.Printf("ERROR: Batch with ID %s does not exist", batchID)
+		return fmt.Errorf("batch with ID %s not found", batchID)
+	}
+
+	// Получаем все фотографии в батче
+	rows, err := a.db.Query("SELECT id, exif_data FROM photos WHERE batch_id = ?", batchID)
+	if err != nil {
+		log.Printf("ERROR: Failed to get batch photos for ID %s: %v", batchID, err)
+		return fmt.Errorf("failed to get batch photos: %w", err)
+	}
+	defer rows.Close()
+
+	// Сначала собираем все данные, чтобы быстро освободить rows
+	type photoData struct {
+		ID       string
+		ExifJSON string
+	}
+	var photos []photoData
+
+	for rows.Next() {
+		var photo photoData
+		err := rows.Scan(&photo.ID, &photo.ExifJSON)
+		if err != nil {
+			log.Printf("WARNING: Failed to scan photo row: %v", err)
+			continue
+		}
+		photos = append(photos, photo)
+	}
+
+	if err = rows.Err(); err != nil {
+		log.Printf("ERROR: Error iterating photo rows: %v", err)
+		return fmt.Errorf("error processing photos: %w", err)
+	}
+
+	// Закрываем rows явно
+	rows.Close()
+
+	// Теперь обновляем каждое фото отдельными быстрыми транзакциями
+	var updateCount int
+	for _, photo := range photos {
+		err := a.updatePhotoSelection(photo.ID, photo.ExifJSON, true)
+		if err != nil {
+			log.Printf("WARNING: Failed to update photo %s: %v", photo.ID, err)
+			continue
+		}
+		updateCount++
+	}
+
+	log.Printf("Successfully selected %d photos for upload in batch %s", updateCount, batchID)
+	return nil
+}
+
+// updatePhotoSelection обновляет статус выбора фотографии
+func (a *App) updatePhotoSelection(photoID, exifJSON string, selected bool) error {
+	var exifData map[string]string
+	if exifJSON != "" {
+		err := json.Unmarshal([]byte(exifJSON), &exifData)
+		if err != nil {
+			log.Printf("WARNING: Failed to unmarshal EXIF data for photo %s: %v", photoID, err)
+			exifData = make(map[string]string) // создаем новый map при ошибке
+		}
+	} else {
+		exifData = make(map[string]string)
+	}
+
+	// Убеждаемся что map не nil перед записью
+	if exifData == nil {
+		exifData = make(map[string]string)
+	}
+
+	if selected {
+		exifData["_selected_for_upload"] = "true"
+	} else {
+		delete(exifData, "_selected_for_upload")
+	}
+
+	updatedExifJSON, err := json.Marshal(exifData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal updated EXIF data: %w", err)
+	}
+
+	// Выполняем обновление с retry логикой
+	maxRetries := 3
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		_, err = a.db.Exec("UPDATE photos SET exif_data = ? WHERE id = ?", string(updatedExifJSON), photoID)
+		if err == nil {
+			return nil
+		}
+
+		if strings.Contains(err.Error(), "database is locked") && attempt < maxRetries {
+			time.Sleep(time.Duration(attempt*50) * time.Millisecond)
+			continue
+		}
+
+		return err
+	}
+
+	return fmt.Errorf("failed to update photo after %d attempts", maxRetries)
+}
+
+// ClearAllPhotoSelection очищает выбор всех фотографий в батче
+func (a *App) ClearAllPhotoSelection(batchID string) error {
+	// Проверяем что batchID не пустой
+	if batchID == "" {
+		log.Printf("ERROR: ClearAllPhotoSelection called with empty batchID")
+		return fmt.Errorf("batch ID cannot be empty")
+	}
+
+	log.Printf("ClearAllPhotoSelection called with batchID: %s", batchID)
+
+	// Retry логика для database lock
+	maxRetries := 5
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		err := a.clearAllPhotoSelectionAttempt(batchID)
+		if err == nil {
+			return nil
+		}
+
+		if strings.Contains(err.Error(), "database is locked") {
+			log.Printf("Database locked on clear attempt %d/%d, retrying...", attempt, maxRetries)
+			time.Sleep(time.Duration(attempt*100) * time.Millisecond)
+			continue
+		}
+
+		return err
+	}
+
+	return fmt.Errorf("failed to clear all photo selection after %d attempts: database is locked", maxRetries)
+}
+
+// clearAllPhotoSelectionAttempt выполняет одну попытку очистки выбора всех фото
+func (a *App) clearAllPhotoSelectionAttempt(batchID string) error {
+	// Сначала проверяем, существует ли батч
+	var count int
+	err := a.db.QueryRow("SELECT COUNT(*) FROM batches WHERE id = ?", batchID).Scan(&count)
+	if err != nil {
+		log.Printf("ERROR: Failed to check batch existence for ID %s: %v", batchID, err)
+		return fmt.Errorf("failed to verify batch existence: %w", err)
+	}
+	if count == 0 {
+		log.Printf("ERROR: Batch with ID %s does not exist", batchID)
+		return fmt.Errorf("batch with ID %s not found", batchID)
+	}
+
+	// Получаем все фотографии в батче
+	rows, err := a.db.Query("SELECT id, exif_data FROM photos WHERE batch_id = ?", batchID)
+	if err != nil {
+		log.Printf("ERROR: Failed to get batch photos for ID %s: %v", batchID, err)
+		return fmt.Errorf("failed to get batch photos: %w", err)
+	}
+	defer rows.Close()
+
+	// Сначала собираем все данные, чтобы быстро освободить rows
+	type photoData struct {
+		ID       string
+		ExifJSON string
+	}
+	var photos []photoData
+
+	for rows.Next() {
+		var photo photoData
+		err := rows.Scan(&photo.ID, &photo.ExifJSON)
+		if err != nil {
+			log.Printf("WARNING: Failed to scan photo row: %v", err)
+			continue
+		}
+		photos = append(photos, photo)
+	}
+
+	if err = rows.Err(); err != nil {
+		log.Printf("ERROR: Error iterating photo rows: %v", err)
+		return fmt.Errorf("error processing photos: %w", err)
+	}
+
+	// Закрываем rows явно
+	rows.Close()
+
+	// Теперь обновляем каждое фото отдельными быстрыми транзакциями
+	var updateCount int
+	for _, photo := range photos {
+		// Пропускаем фото без EXIF данных - им нечего очищать
+		if photo.ExifJSON == "" {
+			continue
+		}
+
+		err := a.updatePhotoSelection(photo.ID, photo.ExifJSON, false)
+		if err != nil {
+			log.Printf("WARNING: Failed to clear selection for photo %s: %v", photo.ID, err)
+			continue
+		}
+		updateCount++
+	}
+
+	log.Printf("Successfully cleared selection for %d photos in batch %s", updateCount, batchID)
 	return nil
 }
 
@@ -1083,5 +1430,123 @@ func (a *App) CheckExifToolStatus() map[string]interface{} {
 		result["message"] = "ExifTool доступен. Метаданные будут автоматически записываться в EXIF файлов."
 	}
 
+	return result
+}
+
+// CleanOldLogs очищает старые лог файлы
+func (a *App) CleanOldLogs(daysToKeep int) error {
+	if a.logger == nil {
+		return fmt.Errorf("logger not initialized")
+	}
+	return a.logger.CleanOldLogs(daysToKeep)
+}
+
+// truncateString обрезает строку до указанной длины
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
+}
+
+// CheckDatabaseHealth проверяет состояние базы данных
+// buildRegenerateDialogPrompt создает промпт-диалог для регенерации метаданных
+func (a *App) buildRegenerateDialogPrompt(currentAIResult *models.AIResult, userComment string, contentType string) string {
+	var dialogPrompt strings.Builder
+
+	// Базовый промпт в зависимости от типа контента
+	if contentType == "editorial" {
+		dialogPrompt.WriteString("You are an AI assistant helping to improve metadata for editorial stock photos. ")
+		dialogPrompt.WriteString("Editorial photos require factual, descriptive metadata that focuses on real events, people, and locations.\n\n")
+	} else {
+		dialogPrompt.WriteString("You are an AI assistant helping to improve metadata for commercial stock photos. ")
+		dialogPrompt.WriteString("Commercial photos require versatile metadata that emphasizes concepts, emotions, and commercial applications.\n\n")
+	}
+
+	// Добавляем текущие данные если они есть
+	if currentAIResult != nil {
+		dialogPrompt.WriteString("CURRENT METADATA:\n")
+
+		if currentAIResult.Title != "" {
+			dialogPrompt.WriteString(fmt.Sprintf("Title: %s\n", currentAIResult.Title))
+		}
+
+		if currentAIResult.Description != "" {
+			dialogPrompt.WriteString(fmt.Sprintf("Description: %s\n", currentAIResult.Description))
+		}
+
+		if len(currentAIResult.Keywords) > 0 {
+			dialogPrompt.WriteString(fmt.Sprintf("Keywords: %s\n", strings.Join(currentAIResult.Keywords, ", ")))
+		}
+
+		if currentAIResult.Category != "" {
+			dialogPrompt.WriteString(fmt.Sprintf("Category: %s\n", currentAIResult.Category))
+		}
+
+		dialogPrompt.WriteString("\n")
+	}
+
+	// Добавляем комментарий пользователя
+	dialogPrompt.WriteString("USER FEEDBACK:\n")
+	dialogPrompt.WriteString(userComment)
+	dialogPrompt.WriteString("\n\n")
+
+	// Инструкции для AI
+	dialogPrompt.WriteString("INSTRUCTIONS:\n")
+	dialogPrompt.WriteString("Please analyze the image again and improve the metadata based on the user's feedback. ")
+	dialogPrompt.WriteString("Consider the existing metadata and the specific improvements requested. ")
+	dialogPrompt.WriteString("Generate new, improved metadata that addresses the user's concerns while maintaining accuracy and relevance for ")
+	if contentType == "editorial" {
+		dialogPrompt.WriteString("editorial stock photography.")
+	} else {
+		dialogPrompt.WriteString("commercial stock photography.")
+	}
+
+	return dialogPrompt.String()
+}
+
+func (a *App) CheckDatabaseHealth() map[string]interface{} {
+	result := make(map[string]interface{})
+
+	// Проверяем доступность базы данных
+	err := a.db.Ping()
+	if err != nil {
+		result["status"] = "error"
+		result["error"] = fmt.Sprintf("Database ping failed: %v", err)
+		return result
+	}
+
+	// Получаем информацию о журнале
+	var journalMode string
+	err = a.db.QueryRow("PRAGMA journal_mode").Scan(&journalMode)
+	if err != nil {
+		result["journal_mode_error"] = err.Error()
+	} else {
+		result["journal_mode"] = journalMode
+	}
+
+	// Проверяем количество открытых соединений
+	stats := a.db.Stats()
+	result["open_connections"] = stats.OpenConnections
+	result["in_use"] = stats.InUse
+	result["idle"] = stats.Idle
+
+	// Проверяем блокировки
+	var lockStatus string
+	err = a.db.QueryRow("PRAGMA database_list").Scan(&lockStatus)
+	if err != nil {
+		result["lock_check_error"] = err.Error()
+	}
+
+	// Пытаемся выполнить простой запрос
+	var count int
+	err = a.db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table'").Scan(&count)
+	if err != nil {
+		result["simple_query_error"] = err.Error()
+	} else {
+		result["table_count"] = count
+	}
+
+	result["status"] = "ok"
 	return result
 }

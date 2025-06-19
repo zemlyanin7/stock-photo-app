@@ -118,3 +118,16 @@ notes.md
 TODO.md
 PERSONAL.md
 scratch.txt
+
+# Временные файлы разработки и заметки
+*_FIX.md
+*_LIMIT.md
+*_OPTIMIZATION.md
+*.backup
+*.clean
+*test-final*
+*stock-photo-app
+
+# Собранные бинарники (не должны быть в репозитории)
+stock-photo-app
+test-final

@@ -4,7 +4,13 @@ import {models} from '../models';
 
 export function ApprovePhoto(arg1:string):Promise<void>;
 
+export function CheckDatabaseHealth():Promise<Record<string, any>>;
+
 export function CheckExifToolStatus():Promise<Record<string, any>>;
+
+export function CleanOldLogs(arg1:number):Promise<void>;
+
+export function ClearAllPhotoSelection(arg1:string):Promise<void>;
 
 export function DeleteBatch(arg1:string):Promise<void>;
 
@@ -26,7 +32,11 @@ export function GetDefaultLanguage():Promise<string>;
 
 export function GetFolderContents(arg1:string):Promise<Array<models.PhotoFile>>;
 
+export function GetPhoto(arg1:string):Promise<models.Photo>;
+
 export function GetPhotoEvents(arg1:string):Promise<Array<models.EventLog>>;
+
+export function GetPhotoSelectionStatus(arg1:string):Promise<boolean>;
 
 export function GetPhotoThumbnail(arg1:string):Promise<string>;
 
@@ -46,6 +56,8 @@ export function GetStockTemplates():Promise<Record<string, models.StockTemplate>
 
 export function GetUploadProgress(arg1:string):Promise<Record<string, any>>;
 
+export function GetUploadQueueStatus():Promise<Record<string, any>>;
+
 export function ProcessPhotoFolder(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function RegeneratePhotoMetadata(arg1:string,arg2:string):Promise<void>;
@@ -58,13 +70,19 @@ export function SaveSettings(arg1:models.AppSettings):Promise<void>;
 
 export function SaveStockConfig(arg1:models.StockConfig):Promise<void>;
 
+export function SelectAllPhotosForUpload(arg1:string):Promise<void>;
+
 export function SelectFolder():Promise<string>;
+
+export function SetPhotoSelectedForUpload(arg1:string,arg2:boolean):Promise<void>;
 
 export function SetPhotoStatus(arg1:string,arg2:string):Promise<void>;
 
 export function StartQueueProcessing():Promise<void>;
 
 export function StopQueueProcessing():Promise<void>;
+
+export function StopUploadQueue():Promise<void>;
 
 export function TestStockConnection(arg1:models.StockConfig):Promise<void>;
 
@@ -75,5 +93,7 @@ export function UpdateAIPrompt(arg1:string,arg2:string):Promise<void>;
 export function UpdatePhotoMetadata(arg1:string,arg2:models.AIResult):Promise<void>;
 
 export function UploadApprovedPhotos(arg1:string):Promise<void>;
+
+export function UploadSelectedPhotos(arg1:string,arg2:Array<string>):Promise<void>;
 
 export function ValidateStockConfig(arg1:models.StockConfig):Promise<void>;

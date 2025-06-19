@@ -289,49 +289,98 @@
                 <!-- Batch Selector and Actions -->
                 <div class="mb-6">
                     <label for="batchSelector" class="block text-sm font-medium text-gray-700 mb-2" data-i18n="review.selectBatch">Select Batch to Review</label>
-                    <div class="flex space-x-3">
-                        <select id="batchSelector" class="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="" data-i18n="review.selectBatchPlaceholder">Select a processed batch...</option>
-                        </select>
+                    <select id="batchSelector" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+                        <option value="" data-i18n="review.selectBatchPlaceholder">Select a processed batch...</option>
+                    </select>
+                    
+                    <!-- Batch Actions -->
+                    <div id="batchActions" class="hidden space-y-3">
+                        <!-- Upload Selection Controls -->
+                        <div class="flex flex-wrap gap-2 items-center p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div class="text-sm font-medium text-blue-900">Upload Selection:</div>
+                            <button id="selectAllForUploadBtn" 
+                                    class="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
+                                <i class="fas fa-check-square mr-1"></i>
+                                <span data-i18n="review.selectAll">Select All</span>
+                            </button>
+                            <button id="clearSelectionBtn" 
+                                    class="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700">
+                                <i class="fas fa-square mr-1"></i>
+                                <span data-i18n="review.clearAll">Clear All</span>
+                            </button>
+                            <button id="uploadSelectedBtn" 
+                                    class="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fas fa-upload mr-1"></i>
+                                <span data-i18n="review.uploadSelected">Upload Selected</span>
+                            </button>
+                        </div>
                         
                         <!-- Batch Actions -->
-                        <div id="batchActions" class="hidden flex space-x-2 flex-wrap">
-                            <!-- Bulk Actions -->
-                            <div class="flex space-x-1">
-                                <button id="approveAllBtn" 
-                                        class="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
-                                    <i class="fas fa-check-double mr-1"></i>
-                                    <span>Approve All</span>
-                                </button>
-                                <button id="rejectAllBtn" 
-                                        class="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
-                                    <i class="fas fa-times-circle mr-1"></i>
-                                    <span>Reject All</span>
-                                </button>
-                                <button id="regenerateAllBtn" 
-                                        class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
-                                    <i class="fas fa-sync-alt mr-1"></i>
-                                    <span>Regenerate All</span>
-                                </button>
-                            </div>
-                            
-                            <!-- Separator -->
-                            <div class="border-l border-gray-300 mx-2"></div>
-                            
-                            <!-- Main Actions -->
-                            <div class="flex space-x-2">
-                                <button id="uploadToStocksBtn" 
-                                        class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                                    <i class="fas fa-upload mr-1"></i>
-                                    <span data-i18n="review.uploadToStocks">Upload to Stocks</span>
-                                </button>
-                                <button id="deleteBatchBtn" 
-                                        class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
-                                    <i class="fas fa-trash mr-1"></i>
-                                    <span data-i18n="review.deleteBatch">Delete Batch</span>
-                                </button>
-                            </div>
+                        <div class="flex flex-wrap gap-2 items-center">
+                            <button id="approveAllBtn" 
+                                    class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
+                                <i class="fas fa-check-double mr-1"></i>
+                                <span data-i18n="review.approveAll">Approve All</span>
+                            </button>
+                            <button id="rejectAllBtn" 
+                                    class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
+                                <i class="fas fa-times-circle mr-1"></i>
+                                <span data-i18n="review.rejectAll">Reject All</span>
+                            </button>
+                            <button id="regenerateAllBtn" 
+                                    class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
+                                <i class="fas fa-sync-alt mr-1"></i>
+                                <span data-i18n="review.regenerateAll">Regenerate All</span>
+                            </button>
+                            <button id="uploadToStocksBtn" 
+                                    class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fas fa-upload mr-1"></i>
+                                <span data-i18n="review.uploadToStocks">Upload Approved</span>
+                            </button>
+                            <button id="deleteBatchBtn" 
+                                    class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                                <i class="fas fa-trash mr-1"></i>
+                                <span data-i18n="review.deleteBatch">Delete Batch</span>
+                            </button>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Upload Queue Status -->
+                <div id="uploadQueueStatus" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-lg font-medium text-blue-900">
+                            <i class="fas fa-cloud-upload-alt mr-2"></i>
+                            Upload Queue Status
+                        </h3>
+                        <button id="stopUploadQueueBtn" class="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700">
+                            <i class="fas fa-stop mr-1"></i>
+                            Stop Queue
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                        <div class="bg-white rounded-lg p-3 text-center">
+                            <div class="text-2xl font-bold text-blue-600" id="activeUploadsCount">0</div>
+                            <div class="text-sm text-gray-600">Active Uploads</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-3 text-center">
+                            <div class="text-2xl font-bold text-gray-600" id="queueLengthCount">0</div>
+                            <div class="text-sm text-gray-600">In Queue</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-3 text-center">
+                            <div class="text-2xl font-bold text-green-600" id="maxConcurrentCount">2</div>
+                            <div class="text-sm text-gray-600">Max Parallel</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-3 text-center">
+                            <div class="text-sm font-medium" id="queueStatusText">Idle</div>
+                            <div class="text-xs text-gray-600">Status</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Active Jobs -->
+                    <div id="activeJobsList" class="space-y-2">
+                        <!-- Active jobs will be displayed here -->
                     </div>
                 </div>
 
@@ -625,7 +674,9 @@
         </div>
     </div>
 
-    <script type="module" src="./src/i18n.js"></script>
-    <script type="module" src="./src/main.js"></script>
+    <!-- Scripts -->
+    <script type="module" src="src/i18n.js"></script>
+    <script type="module" src="src/upload-manager.js"></script>
+    <script type="module" src="src/main.js"></script>
 </body>
 </html>

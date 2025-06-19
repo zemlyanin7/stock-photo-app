@@ -100,7 +100,30 @@
     "uploadError": "Failed to start upload to stocks",
     "confirmDelete": "Are you sure you want to delete this batch and all its photos? This action cannot be undone.",
     "batchDeleted": "Batch deleted successfully",
-    "deleteError": "Failed to delete batch"
+    "deleteError": "Failed to delete batch",
+        "selectAll": "Select All",
+    "clearAll": "Clear All",
+    "uploadSelected": "Upload Selected",
+    "approveAll": "Approve All",
+    "rejectAll": "Reject All",
+    "regenerateAll": "Regenerate All",
+    "regenerateDialog": {
+      "title": "Regenerate Photo Metadata",
+      "currentData": "Current AI-generated data:",
+      "title_field": "Title:",
+      "description_field": "Description:",
+      "keywords_field": "Keywords:",
+      "category_field": "Category:",
+      "noTitle": "No title generated",
+      "noDescription": "No description generated", 
+      "noKeywords": "No keywords generated",
+      "noCategory": "No category set",
+      "feedbackLabel": "What needs to be corrected or improved?",
+      "feedbackPlaceholder": "Example: The title should focus more on the architectural style. Add keywords related to urban photography. The description is too generic - make it more specific about the lighting and mood.",
+      "feedbackTip": "Tip: Be specific about what you want changed. The AI will use your feedback to improve the existing content. Leave empty to regenerate with default settings.",
+      "regenerateBtn": "Regenerate with Feedback",
+      "cancelBtn": "Cancel"
+    }
   },
   "history": {
     "title": "Processing History",

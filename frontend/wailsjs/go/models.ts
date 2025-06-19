@@ -290,6 +290,7 @@ export namespace models {
 	    aiResult?: AIResult;
 	    uploadStatus: Record<string, string>;
 	    status: string;
+	    selectedForUpload: boolean;
 	    // Go type: time
 	    createdAt: any;
 	    // Go type: time
@@ -312,6 +313,7 @@ export namespace models {
 	        this.aiResult = this.convertValues(source["aiResult"], AIResult);
 	        this.uploadStatus = source["uploadStatus"];
 	        this.status = source["status"];
+	        this.selectedForUpload = source["selectedForUpload"];
 	        this.createdAt = this.convertValues(source["createdAt"], null);
 	        this.updatedAt = this.convertValues(source["updatedAt"], null);
 	    }

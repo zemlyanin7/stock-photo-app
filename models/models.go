@@ -25,19 +25,20 @@ type BatchStats struct {
 
 // Photo представляет отдельную фотографию
 type Photo struct {
-	ID            string            `json:"id" db:"id"`
-	BatchID       string            `json:"batchId" db:"batch_id"`
-	ContentType   string            `json:"contentType" db:"content_type"` // "editorial" or "commercial"
-	OriginalPath  string            `json:"originalPath" db:"original_path"`
-	ThumbnailPath string            `json:"thumbnailPath" db:"thumbnail_path"`
-	FileName      string            `json:"fileName" db:"file_name"`
-	FileSize      int64             `json:"fileSize" db:"file_size"`
-	ExifData      map[string]string `json:"exifData"`
-	AIResult      *AIResult         `json:"aiResult,omitempty"` // результаты AI анализа
-	UploadStatus  map[string]string `json:"uploadStatus"`       // stock_id -> status
-	Status        string            `json:"status" db:"status"` // "pending", "processing", "completed", "failed"
-	CreatedAt     time.Time         `json:"createdAt" db:"created_at"`
-	UpdatedAt     time.Time         `json:"updatedAt,omitempty"` // время последнего обновления
+	ID                string            `json:"id" db:"id"`
+	BatchID           string            `json:"batchId" db:"batch_id"`
+	ContentType       string            `json:"contentType" db:"content_type"` // "editorial" or "commercial"
+	OriginalPath      string            `json:"originalPath" db:"original_path"`
+	ThumbnailPath     string            `json:"thumbnailPath" db:"thumbnail_path"`
+	FileName          string            `json:"fileName" db:"file_name"`
+	FileSize          int64             `json:"fileSize" db:"file_size"`
+	ExifData          map[string]string `json:"exifData"`
+	AIResult          *AIResult         `json:"aiResult,omitempty"` // результаты AI анализа
+	UploadStatus      map[string]string `json:"uploadStatus"`       // stock_id -> status
+	Status            string            `json:"status" db:"status"` // "pending", "processing", "completed", "failed"
+	SelectedForUpload bool              `json:"selectedForUpload"`  // выбрана ли фотография для загрузки
+	CreatedAt         time.Time         `json:"createdAt" db:"created_at"`
+	UpdatedAt         time.Time         `json:"updatedAt,omitempty"` // время последнего обновления
 }
 
 // AIResult содержит результаты анализа нейросетью

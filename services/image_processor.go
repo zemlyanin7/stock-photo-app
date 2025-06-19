@@ -18,6 +18,7 @@ import (
 
 type ImageProcessor struct {
 	tempDir string
+	logger  *Logger
 }
 
 func NewImageProcessor(tempDir string) *ImageProcessor {
@@ -28,6 +29,23 @@ func NewImageProcessor(tempDir string) *ImageProcessor {
 
 	return &ImageProcessor{
 		tempDir: tempDir,
+		logger:  nil, // для обратной совместимости
+	}
+}
+
+func NewImageProcessorWithLogger(tempDir string, logger *Logger) *ImageProcessor {
+	// Создаем временную папку если не существует
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		if logger != nil {
+			logger.LogError("Failed to create temp directory: %v", err)
+		} else {
+			log.Printf("Failed to create temp directory: %v", err)
+		}
+	}
+
+	return &ImageProcessor{
+		tempDir: tempDir,
+		logger:  logger,
 	}
 }
 
@@ -192,27 +210,44 @@ func (p *ImageProcessor) ExtractExifData(imagePath string) (map[string]string, e
 
 	// Список тегов для извлечения
 	tags := map[exif.FieldName]string{
-		exif.Make:            "Camera",
-		exif.Model:           "Model",
-		exif.DateTime:        "DateTime",
-		exif.FocalLength:     "FocalLength",
-		exif.FNumber:         "Aperture",
-		exif.ISOSpeedRatings: "ISO",
-		exif.ExposureTime:    "ShutterSpeed",
-		exif.Flash:           "Flash",
-		exif.WhiteBalance:    "WhiteBalance",
-		exif.Orientation:     "Orientation",
-		exif.XResolution:     "XResolution",
-		exif.YResolution:     "YResolution",
-		exif.Software:        "Software",
-		exif.Artist:          "Artist",
-		exif.Copyright:       "Copyright",
+		exif.Make:             "Make",
+		exif.Model:            "Model",
+		exif.DateTime:         "DateTime",
+		exif.DateTimeOriginal: "DateTimeOriginal", // Дата съемки (основная)
+		exif.FocalLength:      "FocalLength",
+		exif.FNumber:          "Aperture",
+		exif.ISOSpeedRatings:  "ISO",
+		exif.ExposureTime:     "ShutterSpeed",
+		exif.Flash:            "Flash",
+		exif.WhiteBalance:     "WhiteBalance",
+		exif.Orientation:      "Orientation",
+		exif.XResolution:      "XResolution",
+		exif.YResolution:      "YResolution",
+		exif.Software:         "Software",
+		exif.Artist:           "Artist",
+		exif.Copyright:        "Copyright",
 	}
 
 	for fieldName, key := range tags {
 		if tag, err := exifData.Get(fieldName); err == nil {
 			result[key] = strings.Trim(tag.String(), "\"")
 		}
+	}
+
+	// Добавляем дополнительные поля даты для лучшего извлечения
+	// Приоритизируем DateTimeOriginal как основную дату съемки
+	if result["DateTimeOriginal"] != "" {
+		// Сохраняем DateTimeOriginal как основную дату съемки
+		result["Date/Time Original"] = result["DateTimeOriginal"]
+		result["DateTime Original"] = result["DateTimeOriginal"]
+	}
+
+	// Добавляем альтернативные названия полей для совместимости
+	if result["Make"] != "" {
+		result["Camera Make"] = result["Make"]
+	}
+	if result["Model"] != "" {
+		result["Camera Model"] = result["Model"]
 	}
 
 	// Добавляем размеры изображения
@@ -223,7 +258,14 @@ func (p *ImageProcessor) ExtractExifData(imagePath string) (map[string]string, e
 		result["Height"] = tag.String()
 	}
 
-	log.Printf("Extracted EXIF data from %s: %d fields", imagePath, len(result))
+	// Логируем извлеченные EXIF данные
+	fileName := filepath.Base(imagePath)
+	if p.logger != nil {
+		p.logger.LogEXIFData(fileName, result)
+	} else {
+		log.Printf("Extracted EXIF data from %s: %d fields", imagePath, len(result))
+	}
+
 	return result, nil
 }
 

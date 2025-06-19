@@ -6,8 +6,20 @@ export function ApprovePhoto(arg1) {
   return window['go']['main']['App']['ApprovePhoto'](arg1);
 }
 
+export function CheckDatabaseHealth() {
+  return window['go']['main']['App']['CheckDatabaseHealth']();
+}
+
 export function CheckExifToolStatus() {
   return window['go']['main']['App']['CheckExifToolStatus']();
+}
+
+export function CleanOldLogs(arg1) {
+  return window['go']['main']['App']['CleanOldLogs'](arg1);
+}
+
+export function ClearAllPhotoSelection(arg1) {
+  return window['go']['main']['App']['ClearAllPhotoSelection'](arg1);
 }
 
 export function DeleteBatch(arg1) {
@@ -50,8 +62,16 @@ export function GetFolderContents(arg1) {
   return window['go']['main']['App']['GetFolderContents'](arg1);
 }
 
+export function GetPhoto(arg1) {
+  return window['go']['main']['App']['GetPhoto'](arg1);
+}
+
 export function GetPhotoEvents(arg1) {
   return window['go']['main']['App']['GetPhotoEvents'](arg1);
+}
+
+export function GetPhotoSelectionStatus(arg1) {
+  return window['go']['main']['App']['GetPhotoSelectionStatus'](arg1);
 }
 
 export function GetPhotoThumbnail(arg1) {
@@ -90,6 +110,10 @@ export function GetUploadProgress(arg1) {
   return window['go']['main']['App']['GetUploadProgress'](arg1);
 }
 
+export function GetUploadQueueStatus() {
+  return window['go']['main']['App']['GetUploadQueueStatus']();
+}
+
 export function ProcessPhotoFolder(arg1, arg2, arg3) {
   return window['go']['main']['App']['ProcessPhotoFolder'](arg1, arg2, arg3);
 }
@@ -114,8 +138,16 @@ export function SaveStockConfig(arg1) {
   return window['go']['main']['App']['SaveStockConfig'](arg1);
 }
 
+export function SelectAllPhotosForUpload(arg1) {
+  return window['go']['main']['App']['SelectAllPhotosForUpload'](arg1);
+}
+
 export function SelectFolder() {
   return window['go']['main']['App']['SelectFolder']();
+}
+
+export function SetPhotoSelectedForUpload(arg1, arg2) {
+  return window['go']['main']['App']['SetPhotoSelectedForUpload'](arg1, arg2);
 }
 
 export function SetPhotoStatus(arg1, arg2) {
@@ -128,6 +160,10 @@ export function StartQueueProcessing() {
 
 export function StopQueueProcessing() {
   return window['go']['main']['App']['StopQueueProcessing']();
+}
+
+export function StopUploadQueue() {
+  return window['go']['main']['App']['StopUploadQueue']();
 }
 
 export function TestStockConnection(arg1) {
@@ -148,6 +184,10 @@ export function UpdatePhotoMetadata(arg1, arg2) {
 
 export function UploadApprovedPhotos(arg1) {
   return window['go']['main']['App']['UploadApprovedPhotos'](arg1);
+}
+
+export function UploadSelectedPhotos(arg1, arg2) {
+  return window['go']['main']['App']['UploadSelectedPhotos'](arg1, arg2);
 }
 
 export function ValidateStockConfig(arg1) {

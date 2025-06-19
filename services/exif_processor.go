@@ -101,8 +101,9 @@ func (e *EXIFProcessor) extractDateTimeInfo(exifData map[string]string) DateTime
 
 	// Основные поля даты
 	dateFields := []string{
-		"DateTime Original", "Date/Time Original", "DateTimeOriginal",
-		"DateTime", "Date/Time", "Create Date", "Date Created",
+		"DateTimeOriginal", "DateTime Original", "Date/Time Original", // Дата съемки - высший приоритет
+		"Create Date", "Date Created", // Альтернативные поля даты создания
+		"DateTime", "Date/Time", // Дата последней модификации - низкий приоритет
 	}
 
 	for _, field := range dateFields {
@@ -199,9 +200,15 @@ func (e *EXIFProcessor) parseDateTime(dateStr string) (time.Time, error) {
 }
 
 // BuildContextualPrompt создает контекстный промпт на основе EXIF данных
-func (e *EXIFProcessor) BuildContextualPrompt(contentType string, basePrompt string, exifData map[string]string) string {
+func (e *EXIFProcessor) BuildContextualPrompt(contentType string, basePrompt string, exifData map[string]string, userDescription string) string {
 	var promptBuilder strings.Builder
 	promptBuilder.WriteString(basePrompt)
+
+	// Добавляем описание пользователя если оно есть
+	if userDescription != "" {
+		promptBuilder.WriteString("\n\nОПИСАНИЕ ПАПКИ ОТ ПОЛЬЗОВАТЕЛЯ:")
+		promptBuilder.WriteString(fmt.Sprintf("\n%s", userDescription))
+	}
 
 	if contentType == "editorial" {
 		// Для editorial добавляем ВСЮ доступную контекстную информацию

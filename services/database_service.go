@@ -267,6 +267,22 @@ func (d *DatabaseService) UpdatePhotoUploadStatus(photoID string, stockID string
 	return nil
 }
 
+// UpdatePhotoUploadQueueStatus обновляет общий статус фотографии в очереди загрузки
+func (d *DatabaseService) UpdatePhotoUploadQueueStatus(photoID string, status string) error {
+	_, err := d.db.Exec(`
+		UPDATE photos 
+		SET status = ?, updated_at = datetime('now') 
+		WHERE id = ?`,
+		status, photoID)
+
+	if err != nil {
+		return fmt.Errorf("failed to update photo queue status: %w", err)
+	}
+
+	log.Printf("Updated photo %s queue status to: %s", photoID, status)
+	return nil
+}
+
 // GetBatchHistory возвращает историю обработанных батчей
 func (d *DatabaseService) GetBatchHistory(limit int) ([]models.PhotoBatch, error) {
 	rows, err := d.db.Query(`
@@ -580,10 +596,11 @@ func (d *DatabaseService) createDefaultSettings() error {
    - Эмоциональное состояние (счастье, успех)
    - Универсальные формулировки
 
-2. ОПИСАНИЕ (до 200 символов):
+2. ОПИСАНИЕ (строго до 200 символов):
    - Общее описание без конкретики
    - Фокус на эмоциях и концепциях
    - Универсальность для разных контекстов
+   - ВАЖНО: Описание не должно превышать 200 символов
 
 3. КЛЮЧЕВЫЕ СЛОВА (48-55 слов):
    АНАЛИЗИРУЙ ИЗОБРАЖЕНИЕ и создавай ключевые слова на основе того, что РЕАЛЬНО видишь:
@@ -680,10 +697,11 @@ func (d *DatabaseService) createDefaultSettings() error {
    - Эмоциональное состояние (счастье, успех)
    - Универсальные формулировки
 
-2. ОПИСАНИЕ (до 200 символов):
+2. ОПИСАНИЕ (строго до 200 символов):
    - Общее описание без конкретики
    - Фокус на эмоциях и концепциях
    - Универсальность для разных контекстов
+   - ВАЖНО: Описание не должно превышать 200 символов
 
 3. КЛЮЧЕВЫЕ СЛОВА (48-55 слов):
    АНАЛИЗИРУЙ ИЗОБРАЖЕНИЕ и создавай ключевые слова на основе того, что РЕАЛЬНО видишь:
@@ -772,10 +790,11 @@ func (d *DatabaseService) updateDefaultPrompts() error {
    - Эмоциональное состояние (счастье, успех)
    - Универсальные формулировки
 
-2. ОПИСАНИЕ (до 200 символов):
+2. ОПИСАНИЕ (строго до 200 символов):
    - Общее описание без конкретики
    - Фокус на эмоциях и концепциях
    - Универсальность для разных контекстов
+   - ВАЖНО: Описание не должно превышать 200 символов
 
 3. КЛЮЧЕВЫЕ СЛОВА (48-55 слов):
    АНАЛИЗИРУЙ ИЗОБРАЖЕНИЕ и создавай ключевые слова на основе того, что РЕАЛЬНО видишь:
