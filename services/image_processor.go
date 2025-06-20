@@ -311,8 +311,9 @@ func (p *ImageProcessor) WriteExifToImage(imagePath string, aiResult models.AIRe
 
 // writeExifWithTool записывает EXIF данные используя внешний exiftool
 func (p *ImageProcessor) writeExifWithTool(imagePath string, aiResult models.AIResult) error {
-	// Проверяем, установлен ли exiftool
-	if _, err := exec.LookPath("exiftool"); err != nil {
+	// Ищем exiftool
+	exifToolPath := p.findExifTool()
+	if exifToolPath == "" {
 		log.Printf("Warning: exiftool not found, skipping EXIF writing. Install with: brew install exiftool (macOS) or apt-get install libimage-exiftool-perl (Ubuntu)")
 		return nil // Не считаем это критической ошибкой
 	}
@@ -338,8 +339,8 @@ func (p *ImageProcessor) writeExifWithTool(imagePath string, aiResult models.AIR
 	}
 
 	// Выполняем очистку
-	log.Printf("Clearing existing metadata: exiftool %s", strings.Join(clearArgs, " "))
-	clearCmd := exec.Command("exiftool", clearArgs...)
+	log.Printf("Clearing existing metadata: %s %s", exifToolPath, strings.Join(clearArgs, " "))
+	clearCmd := exec.Command(exifToolPath, clearArgs...)
 	if clearOutput, err := clearCmd.CombinedOutput(); err != nil {
 		log.Printf("Warning: failed to clear existing metadata: %v, output: %s", err, string(clearOutput))
 	} else {
@@ -417,10 +418,10 @@ func (p *ImageProcessor) writeExifWithTool(imagePath string, aiResult models.AIR
 	args = append(args, imagePath)
 
 	// Логируем команду для отладки
-	log.Printf("Running exiftool command: exiftool %s", strings.Join(args, " "))
+	log.Printf("Running exiftool command: %s %s", exifToolPath, strings.Join(args, " "))
 
 	// Выполняем команду exiftool
-	cmd := exec.Command("exiftool", args...)
+	cmd := exec.Command(exifToolPath, args...)
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
@@ -468,18 +469,42 @@ func (p *ImageProcessor) CleanupTempFiles(olderThan time.Duration) error {
 
 // CheckExifToolAvailable проверяет, доступен ли exiftool
 func (p *ImageProcessor) CheckExifToolAvailable() bool {
-	_, err := exec.LookPath("exiftool")
-	return err == nil
+	return p.findExifTool() != ""
+}
+
+// findExifTool ищет exiftool в различных локациях
+func (p *ImageProcessor) findExifTool() string {
+	// Сначала пробуем стандартный поиск в PATH
+	if exifPath, err := exec.LookPath("exiftool"); err == nil {
+		return exifPath
+	}
+
+	// Возможные пути установки ExifTool на macOS
+	possiblePaths := []string{
+		"/usr/local/bin/exiftool",    // Homebrew
+		"/opt/homebrew/bin/exiftool", // Apple Silicon Homebrew
+		"/usr/bin/exiftool",          // System installation
+		"/opt/local/bin/exiftool",    // MacPorts
+	}
+
+	for _, path := range possiblePaths {
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+
+	return ""
 }
 
 // VerifyExifData проверяет, что EXIF метаданные записались корректно
 func (p *ImageProcessor) VerifyExifData(imagePath string, expectedResult models.AIResult) error {
-	if !p.CheckExifToolAvailable() {
+	exifToolPath := p.findExifTool()
+	if exifToolPath == "" {
 		return fmt.Errorf("exiftool not available")
 	}
 
 	// Читаем EXIF данные с помощью exiftool
-	cmd := exec.Command("exiftool", "-j", "-Title", "-Description", "-Keywords", "-XMP:Title", "-XMP:Description", "-XMP:Keywords", imagePath)
+	cmd := exec.Command(exifToolPath, "-j", "-Title", "-Description", "-Keywords", "-XMP:Title", "-XMP:Description", "-XMP:Keywords", imagePath)
 	output, err := cmd.Output()
 	if err != nil {
 		return fmt.Errorf("failed to read EXIF data: %w", err)
