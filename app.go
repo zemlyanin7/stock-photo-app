@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"stock-photo-app/models"
 	"stock-photo-app/services"
 	"stock-photo-app/uploaders"
@@ -40,6 +41,28 @@ func NewApp() *App {
 // can be used to perform any startup tasks.
 func (a *App) OnStartup(ctx context.Context) {
 	a.ctx = ctx
+
+	// Получаем путь к исполняемому файлу приложения
+	executablePath, err := os.Executable()
+	if err != nil {
+		log.Fatal("Failed to get executable path:", err)
+	}
+
+	// Получаем директорию приложения
+	appDir := filepath.Dir(executablePath)
+	// Если запущено из .app bundle на macOS, поднимаемся до папки с ресурсами
+	if strings.Contains(appDir, ".app/Contents/MacOS") {
+		// Поднимаемся на 3 уровня: MacOS -> Contents -> .app -> parent directory
+		appDir = filepath.Dir(filepath.Dir(filepath.Dir(appDir)))
+	}
+
+	// Меняем рабочую директорию на директорию приложения
+	err = os.Chdir(appDir)
+	if err != nil {
+		log.Printf("Warning: Failed to change working directory to %s: %v", appDir, err)
+	} else {
+		log.Printf("Working directory set to: %s", appDir)
+	}
 
 	// Инициализация логгера
 	logger, err := services.NewLogger("./logs")
