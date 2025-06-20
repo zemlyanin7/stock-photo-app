@@ -1407,6 +1407,31 @@ class StockPhotoApp {
         return stepNames[step] || step;
     }
 
+    // Получает CSS классы для бейджа статуса
+    getStatusBadgeClass(status) {
+        switch (status) {
+            case 'completed':
+                return 'bg-green-100 text-green-800';
+            case 'processing':
+                return 'bg-blue-100 text-blue-800';
+            case 'pending':
+            case 'waiting':
+                return 'bg-yellow-100 text-yellow-800';
+            case 'failed':
+            case 'error':
+                return 'bg-red-100 text-red-800';
+            case 'cancelled':
+            case 'canceled':
+                return 'bg-gray-100 text-gray-800';
+            case 'uploading':
+                return 'bg-purple-100 text-purple-800';
+            case 'paused':
+                return 'bg-orange-100 text-orange-800';
+            default:
+                return 'bg-gray-100 text-gray-800';
+        }
+    }
+
     calculateBatchStats(photos) {
         const stats = {
             total: photos.length,
@@ -2693,8 +2718,87 @@ class StockPhotoApp {
     }
 
     filterAIModels(searchTerm) {
-        // Базовая реализация фильтрации
-        console.log('Filtering AI models with term:', searchTerm);
+        if (!this.currentModels || this.currentModels.length === 0) {
+            return;
+        }
+        
+        const filteredModels = searchTerm.trim() === '' ? 
+            this.currentModels : 
+            this.currentModels.filter(model => 
+                model.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (model.description && model.description.toLowerCase().includes(searchTerm.toLowerCase()))
+            );
+            
+        this.renderAIModelList(filteredModels);
+    }
+
+    // Отрисовка списка AI моделей в dropdown
+    renderAIModelList(models) {
+        const dropdown = document.getElementById('aiModelDropdown');
+        if (!dropdown) {
+            console.error('AI model dropdown not found');
+            return;
+        }
+
+        // Очищаем существующий контент
+        dropdown.innerHTML = '';
+
+        if (!models || models.length === 0) {
+            dropdown.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">Модели не найдены</div>';
+            return;
+        }
+
+        // Создаем элементы для каждой модели
+        models.forEach(model => {
+            const modelElement = document.createElement('div');
+            modelElement.className = 'px-3 py-2 hover:bg-gray-100 cursor-pointer border-b last:border-b-0';
+            modelElement.innerHTML = `
+                <div class="font-medium text-sm">${this.escapeHtml(model.name)}</div>
+                <div class="text-xs text-gray-500 mt-1">${this.escapeHtml(model.description || '')}</div>
+                ${model.maxTokens ? `<div class="text-xs text-blue-600 mt-1">Max tokens: ${model.maxTokens}</div>` : ''}
+            `;
+
+            modelElement.addEventListener('click', () => {
+                this.selectAIModel(model);
+                this.hideAIModelDropdown();
+            });
+
+            dropdown.appendChild(modelElement);
+        });
+    }
+
+    // Выбор AI модели
+    selectAIModel(model) {
+        if (!model) {
+            console.error('No model provided to selectAIModel');
+            return;
+        }
+
+        this.selectedModel = model;
+        
+        // Обновляем поле ввода
+        const input = document.getElementById('aiModelInput');
+        if (input) {
+            input.value = model.name || model.id;
+        }
+
+        // Обновляем скрытое поле с ID модели (если есть)
+        const hiddenInput = document.getElementById('selectedModelId');
+        if (hiddenInput) {
+            hiddenInput.value = model.id;
+        }
+
+        // Обновляем максимальное количество токенов если поле существует
+        const maxTokensInput = document.getElementById('aiMaxTokens');
+        if (maxTokensInput && model.maxTokens) {
+            // Устанавливаем максимальное значение, но не перезаписываем пользовательские настройки
+            maxTokensInput.setAttribute('max', model.maxTokens);
+            if (!maxTokensInput.value || parseInt(maxTokensInput.value) > model.maxTokens) {
+                maxTokensInput.value = Math.min(model.maxTokens, 4000); // Разумное значение по умолчанию
+            }
+        }
+
+        console.log('Selected AI model:', model);
     }
 
     // Показ списка файлов
